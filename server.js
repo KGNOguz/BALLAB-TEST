@@ -116,7 +116,7 @@ const generateArticleHTML = (article) => {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>${article.title} - MIMOS Dergi</title>
+    <title>${article.title} - BALLAB</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Merriweather:ital,wght@0,300;0,400;0,700;0,900;1,300&display=swap" rel="stylesheet">
@@ -241,7 +241,7 @@ const generateArticleHTML = (article) => {
         <div class="max-w-7xl mx-auto px-4 flex flex-col md:flex-row justify-between items-center gap-8">
             <div class="text-center md:text-left">
                 <div class="font-serif text-3xl font-black mb-2 tracking-tight">DERGİ.</div>
-                <p class="text-gray-400 text-sm">© 2025 Minimalist Dergi.</p>
+                <p class="text-gray-400 text-sm">© 2025 BALLAB. Tüm hakları saklıdır.</p>
             </div>
         </div>
     </footer>
