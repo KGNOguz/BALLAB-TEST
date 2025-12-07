@@ -1,0 +1,120 @@
+{
+  "articles": [
+    {
+      "id": 1,
+      "title": "Minimalizm ve Modern Yaşam",
+      "excerpt": "Daha az eşya ile daha çok huzur bulmanın yolları ve modern dünyada sadeliği korumak üzerine bir deneme.",
+      "content": "<p>Minimalizm sadece eşyaları azaltmak değil, hayatımızdaki fazlalıkları atarak asıl önemli olana odaklanmaktır.</p><br><p>Modern dünyada sürekli bir tüketim baskısı altındayız. Her gün yeni bir ürün, yeni bir trend ve yeni bir ihtiyaç yaratılıyor. Oysa mutluluk, sahip olduklarımızın çokluğunda değil, kalitesinde ve onlarla kurduğumuz bağdadır.</p><br><img src=\"https://images.unsplash.com/photo-1493663284031-b7e3aefcae8e?auto=format&fit=crop&q=80&w=1000\" class=\"w-full rounded-lg my-4\" /><br><p>Bu yazıda, evinizde, işinizde ve zihninizde nasıl sadeleşebileceğinizi tartışacağız. Öncelikle gardırobunuzdan başlayın, sonra dijital hayatınızı temizleyin.</p>",
+      "author": "Zeynep Yılmaz",
+      "categories": [
+        "Yaşam",
+        "Gündem"
+      ],
+      "date": "12 Ekim 2023",
+      "imageUrl": "https://images.unsplash.com/photo-1494438639946-1ebd1d20bf85?auto=format&fit=crop&q=80&w=1000",
+      "views": 1250
+    },
+    {
+      "id": 2,
+      "title": "Betonun Şiiri: Brütalizm",
+      "excerpt": "Betonun ham güzelliği ve modern şehirlerin dokusuna etkisi üzerine incelemeler.",
+      "content": "<p>Brütalizm, 1950'lerde ortaya çıkan ve ham beton kullanımıyla karakterize edilen bir mimari akımdır. Yıllarca 'çirkin' olarak nitelendirilse de, günümüzde dürüstlüğü ve sağlamlığı temsil ettiği için yeniden popülerlik kazanıyor.</p>",
+      "author": "Emre Can",
+      "categories": [
+        "Mimari",
+        "Sanat"
+      ],
+      "date": "10 Ekim 2023",
+      "imageUrl": "https://images.unsplash.com/photo-1518005052357-e9847018126f?auto=format&fit=crop&q=80&w=1000",
+      "views": 980
+    },
+    {
+      "id": 3,
+      "title": "Üçüncü Dalga Kahve",
+      "excerpt": "Kahvenin bir yakıttan ziyade bir deneyim haline gelmesi ve demleme teknikleri.",
+      "content": "Kahve artık sadece sabahları uyanmak için içilen acı bir sıvı değil. Üçüncü dalga kahve akımı, kahve çekirdeğine bir şarap üzümü muamelesi yapıyor.",
+      "author": "Elif Demir",
+      "categories": [
+        "Yaşam"
+      ],
+      "date": "08 Ekim 2023",
+      "imageUrl": "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?auto=format&fit=crop&q=80&w=1000",
+      "views": 1500
+    },
+    {
+      "id": 4,
+      "title": "Dijital Sanat ve NFT",
+      "excerpt": "Yapay zeka ve sanatın evrimi üzerine fütüristik bir bakış.",
+      "content": "Sanat dünyası, fırça ve tuvalden piksellere ve algoritmalara doğru evriliyor. Yapay zeka destekli üretim araçları, sanatçıların hayal gücünü sınırların ötesine taşımasına olanak tanıyor.",
+      "author": "Caner Erkin",
+      "categories": [
+        "Sanat",
+        "Teknoloji"
+      ],
+      "date": "05 Ekim 2023",
+      "imageUrl": "https://images.unsplash.com/photo-1550684848-fac1c5b4e853?auto=format&fit=crop&q=80&w=1000",
+      "views": 850
+    },
+    {
+      "id": 5,
+      "title": "Sessizliğin Gücü",
+      "excerpt": "Gürültülü bir dünyada sessiz kalabilmenin önemi.",
+      "content": "Şehir hayatının kaosu içinde sessizlik en büyük lüks haline geldi. Kendimizle baş başa kalmaktan korkar olduk. Oysa yaratıcılık ve huzur, genellikle sessiz anlarda filizlenir.",
+      "author": "Selin Kara",
+      "categories": [
+        "Gündem",
+        "Yaşam"
+      ],
+      "date": "01 Ekim 2023",
+      "imageUrl": "https://images.unsplash.com/photo-1499209974431-2761388a123d?auto=format&fit=crop&q=80&w=1000",
+      "views": 1100
+    }
+  ],
+  "categories": [
+    {
+      "id": 1,
+      "name": "Gündem",
+      "type": "main"
+    },
+    {
+      "id": 2,
+      "name": "Yaşam",
+      "type": "main"
+    },
+    {
+      "id": 3,
+      "name": "Sanat",
+      "type": "main"
+    },
+    {
+      "id": 4,
+      "name": "Sinema",
+      "type": "sub"
+    },
+    {
+      "id": 5,
+      "name": "Mimari",
+      "type": "sub"
+    },
+    {
+      "id": 6,
+      "name": "Teknoloji",
+      "type": "sub"
+    },
+    {
+      "id": 7,
+      "name": "2024",
+      "type": "year"
+    },
+    {
+      "id": 8,
+      "name": "2023",
+      "type": "year"
+    }
+  ],
+  "announcement": {
+    "text": "Yeni sayımız çıktı! Minimalist yaşamın sırlarını keşfedin.",
+    "active": true
+  },
+  "files": []
+}

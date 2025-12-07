@@ -1,0 +1,43 @@
+
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MIMOS Admin</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Merriweather:ital,wght@0,300;0,400;0,700;0,900;1,300&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        serif: ['Merriweather', 'serif'],
+                    },
+                    colors: {
+                        paper: '#ffffff',
+                        ink: '#111111'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #ddd; border-radius: 4px; }
+        .dark .custom-scrollbar::-webkit-scrollbar-thumb { background: #333; }
+    </style>
+</head>
+<body class="bg-paper text-ink dark:bg-gray-900 dark:text-gray-100 transition-colors duration-300 min-h-screen">
+    
+    <div id="admin-app" class="p-4">
+        <!-- Dynamic Content injected by index.js (formerly admin.js) -->
+        <div class="text-center pt-20">Yükleniyor...</div>
+    </div>
+
+    <script src="index.js"></script>
+</body>
+</html>
