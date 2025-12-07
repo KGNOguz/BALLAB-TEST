@@ -37,11 +37,20 @@
                         <span class="hidden md:inline text-sm font-medium text-gray-500 group-hover:text-blue-600">Menü</span>
                     </button>
                 </div>
-                <a href="/" class="text-3xl font-serif font-black tracking-tighter cursor-pointer select-none absolute left-1/2 transform -translate-x-1/2">DERGİ.</a>
-                <div class="flex items-center">
-                     <button id="theme-btn" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-gray-500">
-                        <svg id="icon-sun" class="hidden dark:block" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line></svg>
-                        <svg id="icon-moon" class="block dark:hidden" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+                <a href="/" class="text-3xl font-serif font-black tracking-tighter cursor-pointer select-none absolute left-1/2 transform -translate-x-1/2 flex items-center h-full pb-1">DERGİ.</a>
+                
+                <div class="flex items-center gap-4">
+                     <!-- Search Box -->
+                     <form onsubmit="handleSearch(event)" class="hidden md:flex items-center bg-gray-100 dark:bg-gray-800 rounded-full p-1 pl-4 border border-transparent focus-within:border-gray-300 dark:focus-within:border-gray-600 transition-all">
+                        <input type="text" name="q" placeholder="Ara..." class="bg-transparent text-sm focus:outline-none w-32 focus:w-48 transition-all placeholder-gray-500 dark:placeholder-gray-400">
+                        <button type="submit" class="bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-200 p-2 rounded-full hover:bg-gray-400 dark:hover:bg-gray-500 transition-colors flex items-center justify-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                        </button>
+                    </form>
+
+                     <button id="theme-btn" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-gray-500 flex items-center">
+                        <svg id="icon-sun" class="hidden dark:block" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+                        <svg id="icon-moon" class="block dark:hidden" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
                     </button>
                 </div>
             </div>
@@ -56,6 +65,15 @@
             <button id="sidebar-close" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
         </div>
         <div class="p-8 flex-grow overflow-y-auto">
+             <!-- Mobile Search -->
+             <form onsubmit="handleSearch(event)" class="mb-8 block md:hidden">
+                <div class="flex items-center bg-gray-100 dark:bg-gray-800 rounded-full p-1 border border-transparent focus-within:border-gray-300 dark:focus-within:border-gray-600 transition-all">
+                    <input type="text" name="q" placeholder="İçerik ara..." class="w-full bg-transparent text-sm px-4 py-2 rounded-full focus:outline-none placeholder-gray-500">
+                    <button type="submit" class="bg-gray-300 dark:bg-gray-600 px-3 py-2 rounded-full hover:bg-gray-400 dark:hover:bg-gray-500 transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                    </button>
+                </div>
+            </form>
             <nav class="flex flex-col gap-4 mb-10">
                 <a href="/" class="text-lg font-medium hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Anasayfa</a>
                 <a href="/about.html" class="text-lg font-medium hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Hakkımızda</a>
