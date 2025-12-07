@@ -1,4 +1,3 @@
-
 // --- STATE & INITIALIZATION ---
 
 let state = {
@@ -7,7 +6,6 @@ let state = {
     announcement: { text: '', active: false },
     files: [], // Admin specific
     isAuthenticated: false, // Admin specific
-    selectedCategory: null,
     darkMode: localStorage.getItem('mimos_theme') === 'dark',
     menuOpen: false
 };
@@ -27,18 +25,22 @@ const initApp = async () => {
         
         // --- ROUTING LOGIC ---
         const adminApp = document.getElementById('admin-app');
-        const publicApp = document.getElementById('app');
+        const publicApp = document.getElementById('app'); // Home
+        const searchApp = document.getElementById('search-results'); // Search Page
 
         if (adminApp) {
-            // We are on the Admin Page
+            // Admin Page
             if(sessionStorage.getItem('admin_auth') === 'true') {
                 state.isAuthenticated = true;
             }
             renderAdmin();
         } else {
-            // We are on a Public Page
+            // Public Pages
             renderGlobalUI();
-            if (publicApp) {
+            
+            if (searchApp) {
+                renderSearch(searchApp);
+            } else if (publicApp) {
                 renderHome(publicApp);
             }
         }
@@ -51,7 +53,7 @@ const initApp = async () => {
             <div class="flex items-center justify-center min-h-screen">
                 <div class="p-8 text-center bg-red-50 border border-red-200 rounded-lg max-w-md">
                     <h2 class="text-xl font-bold text-red-700 mb-2">Sunucuya Bağlanılamadı</h2>
-                    <p class="text-sm text-red-600">Lütfen internet bağlantınızı kontrol edin veya sayfayı yenileyin.</p>
+                    <p class="text-sm text-red-600">Lütfen internet bağlantınızı kontrol edin.</p>
                 </div>
             </div>`;
         }
@@ -92,6 +94,19 @@ const toggleMenu = (force) => {
     }
 };
 
+window.handleSearch = (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const query = formData.get('q');
+    
+    if(!query || query.length < 3) {
+        alert("Arama yapmak için en az 3 karakter girmelisiniz.");
+        return;
+    }
+    
+    window.location.href = `/search.html?q=${encodeURIComponent(query)}`;
+};
+
 const renderAnnouncement = () => {
     const container = document.getElementById('announcement-container');
     if (!container) return;
@@ -125,13 +140,21 @@ const renderSidebarCategories = () => {
             <div>
                 <h4 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Ana Kategoriler</h4>
                 <div class="flex flex-col gap-2">
-                    ${mainCats.map(c => `<div class="text-lg font-serif font-bold cursor-default text-gray-700 dark:text-gray-300">${c.name}</div>`).join('')}
+                    ${mainCats.map(c => `
+                        <a href="/?category=${encodeURIComponent(c.name)}" class="text-lg font-serif font-bold text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
+                            ${c.name}
+                        </a>
+                    `).join('')}
                 </div>
             </div>
             <div>
                 <h4 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Arşiv</h4>
                 <div class="flex flex-wrap gap-2">
-                    ${yearCats.map(c => `<span class="text-xs border border-gray-300 dark:border-gray-600 rounded px-2 py-1">${c.name}</span>`).join('')}
+                    ${yearCats.map(c => `
+                        <a href="/?year=${encodeURIComponent(c.name)}" class="text-xs border border-gray-300 dark:border-gray-600 rounded px-2 py-1 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                            ${c.name}
+                        </a>
+                    `).join('')}
                 </div>
             </div>
         </div>
@@ -139,20 +162,39 @@ const renderSidebarCategories = () => {
 };
 
 const renderHome = (container) => {
-    const popular = [...state.articles].sort((a, b) => b.views - a.views);
+    // Check URL params for filtering
+    const urlParams = new URLSearchParams(window.location.search);
+    const categoryFilter = urlParams.get('category');
+    const yearFilter = urlParams.get('year');
+
+    let displayArticles = state.articles;
+    let pageTitle = "Popüler İçerikler";
+
+    if (categoryFilter) {
+        displayArticles = state.articles.filter(a => a.categories.includes(categoryFilter));
+        pageTitle = `Kategori: ${categoryFilter}`;
+    } else if (yearFilter) {
+        displayArticles = state.articles.filter(a => a.date.includes(yearFilter)); // Simple string check for year in date
+        pageTitle = `Arşiv: ${yearFilter}`;
+    }
+
+    const popular = [...displayArticles].sort((a, b) => b.views - a.views);
+    
+    // Discovery section (always random from all articles)
     const topIds = popular.slice(0, 3).map(a => a.id);
     const others = state.articles.filter(a => !topIds.includes(a.id));
     const discovery = others.sort(() => 0.5 - Math.random()).slice(0, 5);
 
     container.innerHTML = `
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-12">
-            <!-- Main Column: Popular -->
+            <!-- Main Column -->
             <div class="lg:col-span-8 space-y-16">
                  <div class="flex items-baseline justify-between border-b border-gray-200 dark:border-gray-800 pb-4 mb-8">
-                    <h2 class="text-2xl font-serif font-bold">Popüler İçerikler</h2>
+                    <h2 class="text-2xl font-serif font-bold">${pageTitle}</h2>
+                    ${(categoryFilter || yearFilter) ? `<a href="/" class="text-sm text-blue-500 hover:underline">Tümünü Göster</a>` : ''}
                  </div>
                 
-                ${popular.length === 0 ? '<p class="text-gray-500 italic">İçerik bulunmuyor.</p>' : popular.map((article) => `
+                ${popular.length === 0 ? '<p class="text-gray-500 italic">Bu kriterlere uygun içerik bulunamadı.</p>' : popular.map((article) => `
                     <article class="group cursor-pointer grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
                         <div class="md:col-span-5 order-2 md:order-1 overflow-hidden rounded-md">
                             <a href="/articles/${article.id}.html">
@@ -214,9 +256,59 @@ const renderHome = (container) => {
     `;
 };
 
-const renderGlobalUI = () => {
-    renderAnnouncement();
-    renderSidebarCategories();
+const renderSearch = (container) => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const query = urlParams.get('q') || '';
+    
+    if(!query) {
+        container.innerHTML = '<p class="text-center py-12">Arama terimi bulunamadı.</p>';
+        return;
+    }
+
+    // Filter Logic: Check title, content, author, categories
+    const lowerQuery = query.toLowerCase();
+    const results = state.articles.filter(a => 
+        a.title.toLowerCase().includes(lowerQuery) || 
+        a.excerpt.toLowerCase().includes(lowerQuery) ||
+        a.author.toLowerCase().includes(lowerQuery) ||
+        a.categories.some(c => c.toLowerCase().includes(lowerQuery))
+    );
+
+    container.innerHTML = `
+        <div class="max-w-4xl mx-auto py-8">
+            <h1 class="text-3xl font-serif font-bold mb-2">Arama Sonuçları</h1>
+            <p class="text-gray-500 mb-12 border-b border-gray-200 dark:border-gray-700 pb-4">
+                "${query}" araması için ${results.length} sonuç bulundu.
+            </p>
+
+            <div class="space-y-12">
+                ${results.length === 0 ? '<p class="text-gray-500 italic">Sonuç bulunamadı.</p>' : results.map((article) => `
+                    <article class="group cursor-pointer grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
+                        <div class="md:col-span-4 order-2 md:order-1 overflow-hidden rounded-md">
+                            <a href="/articles/${article.id}.html">
+                                <img src="${article.imageUrl}" alt="${article.title}" class="w-full h-48 object-cover transform group-hover:scale-105 transition-transform duration-700 grayscale-[20%] group-hover:grayscale-0">
+                            </a>
+                        </div>
+                        <div class="md:col-span-8 order-1 md:order-2 flex flex-col h-full justify-center">
+                            <div class="flex flex-wrap items-center gap-2 mb-2">
+                                ${article.categories.map(cat => `
+                                    <span class="text-[9px] font-bold tracking-widest text-blue-600 dark:text-blue-400 uppercase bg-blue-50 dark:bg-blue-900/20 px-2 py-0.5 rounded">${cat}</span>
+                                `).join('')}
+                            </div>
+                            <a href="/articles/${article.id}.html" class="block">
+                                <h3 class="text-xl md:text-2xl font-serif font-bold mb-2 leading-tight group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors">
+                                    ${article.title}
+                                </h3>
+                            </a>
+                            <p class="text-gray-600 dark:text-gray-400 leading-relaxed mb-2 line-clamp-2 text-sm">
+                                ${article.excerpt}
+                            </p>
+                        </div>
+                    </article>
+                `).join('')}
+            </div>
+        </div>
+    `;
 };
 
 window.closeAnnouncement = () => {
