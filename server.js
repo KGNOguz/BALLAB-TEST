@@ -14,8 +14,8 @@ const RESOURCES_DIR = path.join(__dirname, 'resources');
 const ARTICLES_DIR = path.join(__dirname, 'articles');
 
 // --- SETUP DIRS ---
-if (!fs.existsSync(RESOURCES_DIR)) fs.mkdirSync(RESOURCES_DIR);
-if (!fs.existsSync(ARTICLES_DIR)) fs.mkdirSync(ARTICLES_DIR);
+if (!fs.existsSync(RESOURCES_DIR)) fs.mkdirSync(RESOURCES_DIR, { recursive: true });
+if (!fs.existsSync(ARTICLES_DIR)) fs.mkdirSync(ARTICLES_DIR, { recursive: true });
 if (!fs.existsSync(DATA_FILE)) {
     fs.writeFileSync(DATA_FILE, JSON.stringify({ articles: [], categories: [], announcement: {}, files: [] }));
 }
@@ -27,30 +27,38 @@ app.use(bodyParser.urlencoded({ extended: true, limit: '50mb' }));
 
 // --- API ENDPOINTS (MUST BE BEFORE STATIC SERVING) ---
 
+// 1. Get Data
 app.get('/api/data', (req, res) => {
     fs.readFile(DATA_FILE, 'utf8', (err, data) => {
         if (err) {
             console.error("Data Read Error:", err);
-            return res.status(500).json({ error: 'Veri okunamadı' });
+            // Dosya yoksa veya okunamadıysa boş yapı dön
+            return res.json({ articles: [], categories: [], announcement: {}, files: [] });
         }
-        try { res.json(JSON.parse(data)); } catch (e) { res.json({}); }
+        try { 
+            res.json(JSON.parse(data)); 
+        } catch (e) { 
+            res.json({ articles: [], categories: [], announcement: {}, files: [] }); 
+        }
     });
 });
 
-// SAVE DATA & GENERATE HTML FILES
+// 2. Save Data & Generate HTML
 app.post('/api/data', (req, res) => {
     const newData = req.body;
     
-    // 1. Save JSON
+    // Save JSON
     fs.writeFile(DATA_FILE, JSON.stringify(newData, null, 2), (err) => {
         if (err) {
             console.error("Data Save Error:", err);
             return res.status(500).json({ error: 'Veri kaydedilemedi' });
         }
         
-        // 2. Generate HTML files for each article
+        // Generate HTML files
         try {
             if (newData.articles && Array.isArray(newData.articles)) {
+                // Temizlik: Eski makaleleri silmek isterseniz buraya logic eklenebilir.
+                // Şimdilik sadece üzerine yazıyoruz.
                 newData.articles.forEach(article => {
                     const filePath = path.join(ARTICLES_DIR, `${article.id}.html`);
                     const htmlContent = generateArticleHTML(article);
@@ -65,15 +73,18 @@ app.post('/api/data', (req, res) => {
     });
 });
 
-// --- STORAGE CONFIG (MULTER) ---
+// 3. Upload File
 const storage = multer.diskStorage({
     destination: function (req, file, cb) {
         cb(null, RESOURCES_DIR)
     },
     filename: function (req, file, cb) {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        // Türkçe karakter ve boşluk temizliği
         const ext = path.extname(file.originalname);
-        const name = path.basename(file.originalname, ext).replace(/[^a-zA-Z0-9]/g, '');
+        const name = path.basename(file.originalname, ext)
+            .replace(/[^a-zA-Z0-9]/g, '')
+            .substring(0, 20); // Dosya adını kısalt
+        const uniqueSuffix = Date.now();
         cb(null, name + '-' + uniqueSuffix + ext)
     }
 })
@@ -81,17 +92,24 @@ const upload = multer({ storage: storage });
 
 app.post('/api/upload', upload.single('file'), (req, res) => {
     if (!req.file) return res.status(400).json({ error: 'Dosya yüklenemedi' });
+    // URL'yi /resources/dosyaadi.jpg olarak döndür
     const fileUrl = `/resources/${req.file.filename}`;
     res.json({ success: true, url: fileUrl, filename: req.file.filename });
 });
 
 // --- SERVE STATIC FILES ---
+// Bu sıralama önemli. Önce özel klasörler, sonra root.
 app.use('/resources', express.static(RESOURCES_DIR)); 
 app.use('/articles', express.static(ARTICLES_DIR)); 
 app.use(express.static(__dirname)); 
 
 // --- HTML TEMPLATE GENERATOR ---
 const generateArticleHTML = (article) => {
+    // Kategorileri string array olarak güvenli hale getir
+    const catBadges = Array.isArray(article.categories) 
+        ? article.categories.map(c => `<span class="text-xs font-bold uppercase tracking-widest bg-gray-100 dark:bg-gray-800 px-3 py-1 rounded text-gray-600 dark:text-gray-300">${c}</span>`).join('') 
+        : '';
+
     return `
 <!DOCTYPE html>
 <html lang="tr">
@@ -122,11 +140,15 @@ const generateArticleHTML = (article) => {
         .custom-scrollbar::-webkit-scrollbar { width: 4px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #ddd; border-radius: 4px; }
         .dark .custom-scrollbar::-webkit-scrollbar-thumb { background: #333; }
+        /* Article specific styles */
+        .prose p { margin-bottom: 1.5em; line-height: 1.8; }
+        .prose img { border-radius: 8px; margin: 2em auto; }
+        .prose h2 { font-size: 1.5em; font-weight: bold; margin-top: 2em; margin-bottom: 1em; }
     </style>
 </head>
 <body class="bg-paper text-ink dark:bg-gray-900 dark:text-gray-100 transition-colors duration-300 flex flex-col min-h-screen">
     
-    <!-- Navbar (Static Copy) -->
+    <!-- Navbar (Static Copy for Article) -->
     <nav class="sticky top-0 z-40 bg-white/95 dark:bg-gray-900/95 backdrop-blur border-b border-gray-100 dark:border-gray-800 transition-colors duration-300">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between items-center h-20">
@@ -141,7 +163,7 @@ const generateArticleHTML = (article) => {
                 </a>
                 <div class="flex items-center">
                      <button id="theme-btn" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-gray-500">
-                        <svg id="icon-sun" class="hidden dark:block" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+                        <svg id="icon-sun" class="hidden dark:block" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line></svg>
                         <svg id="icon-moon" class="block dark:hidden" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
                     </button>
                 </div>
@@ -149,14 +171,12 @@ const generateArticleHTML = (article) => {
         </div>
     </nav>
 
-    <!-- Sidebar Overlay & Drawer -->
+    <!-- Sidebar (Will be hydrated by index.js) -->
     <div id="sidebar-overlay" class="fixed inset-0 bg-black/20 backdrop-blur-sm z-50 opacity-0 pointer-events-none transition-opacity duration-300"></div>
     <aside id="sidebar" class="fixed inset-y-0 left-0 w-80 bg-white dark:bg-gray-900 z-50 transform -translate-x-full transition-transform duration-300 shadow-2xl flex flex-col border-r border-gray-100 dark:border-gray-800">
         <div class="p-6 flex justify-between items-center border-b border-gray-100 dark:border-gray-800 h-20">
             <span class="font-serif text-xl font-bold tracking-tight">Menü</span>
-            <button id="sidebar-close" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-            </button>
+            <button id="sidebar-close" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
         </div>
         <div class="p-8 flex-grow overflow-y-auto custom-scrollbar">
             <nav class="flex flex-col gap-4 mb-10">
@@ -169,51 +189,47 @@ const generateArticleHTML = (article) => {
     </aside>
 
     <!-- Article Content -->
-    <main class="flex-grow w-full max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div class="flex justify-between items-center mb-12">
+    <main class="flex-grow w-full max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div class="flex justify-between items-center mb-8">
             <a href="/" class="flex items-center gap-2 text-sm text-gray-500 hover:text-ink dark:hover:text-white transition-colors">
                 ← Geri Dön
             </a>
             <div class="flex gap-2">
-                ${article.categories.map(c => `<span class="text-xs font-bold uppercase tracking-widest bg-gray-100 dark:bg-gray-800 px-3 py-1 rounded">${c}</span>`).join('')}
+                ${catBadges}
             </div>
         </div>
         
-        <header class="text-center mb-12 max-w-2xl mx-auto">
-            <h1 class="text-4xl md:text-6xl font-serif font-black mb-8 leading-tight text-ink dark:text-white">
+        <header class="text-center mb-10">
+            <h1 class="text-3xl md:text-5xl font-serif font-black mb-6 leading-tight text-ink dark:text-white">
                 ${article.title}
             </h1>
-            <div class="flex justify-center items-center gap-4 text-sm font-medium border-t border-b border-gray-100 dark:border-gray-800 py-4">
-                <div class="flex flex-col items-center">
-                     <span class="text-gray-400 text-xs uppercase tracking-widest mb-1">Yazar</span>
-                     <span class="text-ink dark:text-white font-serif italic">${article.author}</span>
-                </div>
-                <div class="w-px h-8 bg-gray-200 dark:bg-gray-800 mx-4"></div>
-                <div class="flex flex-col items-center">
-                     <span class="text-gray-400 text-xs uppercase tracking-widest mb-1">Tarih</span>
-                     <span class="text-ink dark:text-white font-serif italic">${article.date}</span>
-                </div>
+            <div class="flex justify-center items-center gap-4 text-sm text-gray-500">
+                <span>${article.author}</span>
+                <span>•</span>
+                <span>${article.date}</span>
             </div>
         </header>
 
-        <div class="mb-16">
-            <img src="${article.imageUrl}" alt="${article.title}" class="w-full max-h-[600px] object-cover rounded-sm shadow-sm">
+        <div class="mb-12">
+            <img src="${article.imageUrl}" alt="${article.title}" class="w-full h-auto max-h-[500px] object-cover rounded-lg shadow-sm">
         </div>
 
-        <div class="prose prose-lg md:prose-xl dark:prose-invert mx-auto font-serif leading-loose text-gray-800 dark:text-gray-300">
+        <div class="prose prose-lg dark:prose-invert mx-auto font-serif text-gray-800 dark:text-gray-300">
             ${article.content}
         </div>
     </main>
 
     <!-- Footer -->
     <footer class="border-t border-gray-100 dark:border-gray-800 py-16 mt-auto bg-white dark:bg-gray-900">
-        <div class="max-w-7xl mx-auto px-4 text-center">
-            <div class="font-serif text-3xl font-black mb-2 tracking-tight">DERGİ.</div>
-            <p class="text-gray-400 text-sm">© 2025 Minimalist Dergi.</p>
+        <div class="max-w-7xl mx-auto px-4 flex flex-col md:flex-row justify-between items-center gap-8">
+            <div class="text-center md:text-left">
+                <div class="font-serif text-3xl font-black mb-2 tracking-tight">DERGİ.</div>
+                <p class="text-gray-400 text-sm">© 2025 Minimalist Dergi.</p>
+            </div>
         </div>
     </footer>
 
-    <!-- Shared Scripts -->
+    <!-- Script: Point to root index.js -->
     <script src="/index.js"></script>
 </body>
 </html>

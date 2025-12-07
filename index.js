@@ -4,8 +4,8 @@ let state = {
     articles: [],
     categories: [],
     announcement: { text: '', active: false },
-    files: [], // Admin specific
-    isAuthenticated: false, // Admin specific
+    files: [], 
+    isAuthenticated: false,
     darkMode: localStorage.getItem('mimos_theme') === 'dark',
     menuOpen: false
 };
@@ -23,40 +23,48 @@ const initApp = async () => {
         state.announcement = data.announcement || { text: '', active: false };
         state.files = data.files || [];
         
-        // --- ROUTING LOGIC ---
+        // --- ROUTING / VIEW LOGIC ---
         const adminApp = document.getElementById('admin-app');
-        const publicApp = document.getElementById('app'); // Home
-        const searchApp = document.getElementById('search-results'); // Search Page
+        const publicApp = document.getElementById('app'); // Home container
+        const searchApp = document.getElementById('search-results'); // Search container
 
+        // 1. Sidebar'ı her sayfada doldur
+        renderSidebarCategories();
+        
+        // 2. Duyuruyu her sayfada göster
+        renderAnnouncement();
+
+        // 3. Sayfa içeriğine göre render
         if (adminApp) {
             // Admin Page
             if(sessionStorage.getItem('admin_auth') === 'true') {
                 state.isAuthenticated = true;
             }
-            renderAdmin();
-        } else {
-            // Public Pages
-            renderGlobalUI();
-            
-            if (searchApp) {
-                renderSearch(searchApp);
-            } else if (publicApp) {
-                renderHome(publicApp);
-            }
+            renderAdmin(adminApp);
+        } else if (searchApp) {
+            // Search Page
+            renderSearch(searchApp);
+        } else if (publicApp) {
+            // Home Page
+            renderHome(publicApp);
         }
         
     } catch (error) {
         console.error("Veri yükleme hatası:", error);
-        const adminApp = document.getElementById('admin-app');
-        if(adminApp) {
-             adminApp.innerHTML = `
-            <div class="flex items-center justify-center min-h-screen">
-                <div class="p-8 text-center bg-red-50 border border-red-200 rounded-lg max-w-md">
-                    <h2 class="text-xl font-bold text-red-700 mb-2">Sunucuya Bağlanılamadı</h2>
-                    <p class="text-sm text-red-600">Lütfen internet bağlantınızı kontrol edin.</p>
+        // Hata durumunda kullanıcıya bilgi ver
+        const errorHTML = `
+            <div class="flex items-center justify-center min-h-[50vh]">
+                <div class="p-6 text-center bg-red-50 border border-red-200 rounded-lg max-w-md">
+                    <h2 class="text-lg font-bold text-red-700 mb-2">Bağlantı Hatası</h2>
+                    <p class="text-sm text-red-600">Veriler yüklenemedi. Lütfen sayfayı yenileyin.</p>
                 </div>
             </div>`;
-        }
+        
+        const adminApp = document.getElementById('admin-app');
+        if(adminApp) adminApp.innerHTML = errorHTML;
+        
+        const publicApp = document.getElementById('app');
+        if(publicApp) publicApp.innerHTML = errorHTML;
     }
 };
 
@@ -74,11 +82,6 @@ const toggleTheme = () => {
 // Initialize Theme
 if (state.darkMode) document.documentElement.classList.add('dark');
 
-
-// ==========================================
-// PUBLIC SITE LOGIC
-// ==========================================
-
 const toggleMenu = (force) => {
     const sidebar = document.getElementById('sidebar');
     const sidebarOverlay = document.getElementById('sidebar-overlay');
@@ -94,6 +97,7 @@ const toggleMenu = (force) => {
     }
 };
 
+// Global Search Handler (for Forms)
 window.handleSearch = (e) => {
     e.preventDefault();
     const formData = new FormData(e.target);
@@ -104,6 +108,7 @@ window.handleSearch = (e) => {
         return;
     }
     
+    // Redirect to search page
     window.location.href = `/search.html?q=${encodeURIComponent(query)}`;
 };
 
@@ -111,7 +116,7 @@ const renderAnnouncement = () => {
     const container = document.getElementById('announcement-container');
     if (!container) return;
     
-    if (!state.announcement.active) {
+    if (!state.announcement.active || !state.announcement.text) {
         container.innerHTML = '';
         return;
     }
@@ -126,6 +131,12 @@ const renderAnnouncement = () => {
             <button onclick="closeAnnouncement()" class="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-800 dark:hover:text-gray-200">×</button>
         </div>
     `;
+};
+
+window.closeAnnouncement = () => {
+    // Sadece UI'dan kaldır, state'i kaydetmeye gerek yok (kalıcı olması isteniyorsa admin'den kapatılmalı)
+    const container = document.getElementById('announcement-container');
+    if(container) container.innerHTML = '';
 };
 
 const renderSidebarCategories = () => {
@@ -161,8 +172,11 @@ const renderSidebarCategories = () => {
     `;
 };
 
+// ==========================================
+// PUBLIC: HOME & SEARCH
+// ==========================================
+
 const renderHome = (container) => {
-    // Check URL params for filtering
     const urlParams = new URLSearchParams(window.location.search);
     const categoryFilter = urlParams.get('category');
     const yearFilter = urlParams.get('year');
@@ -174,13 +188,13 @@ const renderHome = (container) => {
         displayArticles = state.articles.filter(a => a.categories.includes(categoryFilter));
         pageTitle = `Kategori: ${categoryFilter}`;
     } else if (yearFilter) {
-        displayArticles = state.articles.filter(a => a.date.includes(yearFilter)); // Simple string check for year in date
+        displayArticles = state.articles.filter(a => a.date.includes(yearFilter));
         pageTitle = `Arşiv: ${yearFilter}`;
     }
 
     const popular = [...displayArticles].sort((a, b) => b.views - a.views);
     
-    // Discovery section (always random from all articles)
+    // Discover section
     const topIds = popular.slice(0, 3).map(a => a.id);
     const others = state.articles.filter(a => !topIds.includes(a.id));
     const discovery = others.sort(() => 0.5 - Math.random()).slice(0, 5);
@@ -198,7 +212,7 @@ const renderHome = (container) => {
                     <article class="group cursor-pointer grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
                         <div class="md:col-span-5 order-2 md:order-1 overflow-hidden rounded-md">
                             <a href="/articles/${article.id}.html">
-                                <img src="${article.imageUrl}" alt="${article.title}" class="w-full h-64 md:h-56 object-cover transform group-hover:scale-105 transition-transform duration-700 grayscale-[20%] group-hover:grayscale-0">
+                                <img src="${article.imageUrl}" alt="${article.title}" class="w-full h-64 md:h-56 object-cover transform group-hover:scale-105 transition-transform duration-700 grayscale-[20%] group-hover:grayscale-0 bg-gray-100 dark:bg-gray-800">
                             </a>
                         </div>
                         <div class="md:col-span-7 order-1 md:order-2 flex flex-col h-full justify-center">
@@ -233,7 +247,7 @@ const renderHome = (container) => {
                         <div class="space-y-8">
                             ${discovery.map(article => `
                                 <a href="/articles/${article.id}.html" class="group flex gap-4 items-start">
-                                    <div class="w-20 h-20 shrink-0 overflow-hidden rounded bg-gray-100">
+                                    <div class="w-20 h-20 shrink-0 overflow-hidden rounded bg-gray-100 dark:bg-gray-800">
                                         <img src="${article.imageUrl}" class="w-full h-full object-cover group-hover:scale-110 transition-transform">
                                     </div>
                                     <div>
@@ -265,13 +279,12 @@ const renderSearch = (container) => {
         return;
     }
 
-    // Filter Logic: Check title, content, author, categories
     const lowerQuery = query.toLowerCase();
     const results = state.articles.filter(a => 
-        a.title.toLowerCase().includes(lowerQuery) || 
-        a.excerpt.toLowerCase().includes(lowerQuery) ||
-        a.author.toLowerCase().includes(lowerQuery) ||
-        a.categories.some(c => c.toLowerCase().includes(lowerQuery))
+        (a.title && a.title.toLowerCase().includes(lowerQuery)) || 
+        (a.excerpt && a.excerpt.toLowerCase().includes(lowerQuery)) ||
+        (a.author && a.author.toLowerCase().includes(lowerQuery)) ||
+        (a.categories && a.categories.some(c => c.toLowerCase().includes(lowerQuery)))
     );
 
     container.innerHTML = `
@@ -311,24 +324,154 @@ const renderSearch = (container) => {
     `;
 };
 
-window.closeAnnouncement = () => {
-    state.announcement.active = false;
-    renderAnnouncement();
-};
-
 
 // ==========================================
-// ADMIN PANEL LOGIC (Merged)
+// ADMIN PANEL LOGIC (MERGED)
 // ==========================================
 
-const renderAdmin = () => {
-    const app = document.getElementById('admin-app');
+const renderAdmin = (container) => {
     if(state.isAuthenticated) {
-        app.innerHTML = renderDashboard();
+        container.innerHTML = renderDashboard();
     } else {
-        app.innerHTML = renderLogin();
+        container.innerHTML = renderLogin();
     }
 };
+
+const renderLogin = () => `
+    <div class="flex items-center justify-center min-h-[80vh] bg-paper dark:bg-gray-900">
+        <form onsubmit="handleLogin(event)" class="w-full max-w-md p-10 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-100 dark:border-gray-700">
+            <div class="text-center mb-8">
+                <h2 class="text-3xl font-serif font-bold mb-2">Yönetici Paneli</h2>
+            </div>
+            <div class="mb-6">
+                <input type="password" id="admin-pass" class="w-full p-4 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg outline-none" placeholder="Şifre">
+            </div>
+            <button type="submit" class="w-full bg-ink text-paper dark:bg-white dark:text-black py-4 rounded-lg font-bold hover:opacity-90">GİRİŞ YAP</button>
+        </form>
+    </div>
+`;
+
+const renderDashboard = () => `
+    <div class="max-w-7xl mx-auto py-8">
+        <header class="flex flex-col md:flex-row justify-between items-end mb-12 border-b border-gray-200 dark:border-gray-700 pb-6 gap-4">
+            <div>
+                <h1 class="text-4xl font-serif font-bold mb-2">Admin Paneli</h1>
+                <p class="text-gray-500">Düzenlemeleri yaptıktan sonra <span class="font-bold">KAYDET</span> butonuna basın.</p>
+            </div>
+            <div class="flex gap-4">
+                 <button onclick="saveChanges()" class="px-6 py-3 bg-black text-white dark:bg-white dark:text-black rounded font-bold hover:opacity-80">DEĞİŞİKLİKLERİ KAYDET</button>
+                 <button onclick="handleLogout()" class="px-4 py-3 border border-red-200 text-red-500 rounded hover:bg-red-50">Çıkış</button>
+            </div>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-12">
+            <!-- Left: Article & List -->
+            <div class="lg:col-span-2 space-y-12">
+                <div class="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
+                    <h2 class="text-2xl font-serif font-bold mb-6">Makale Oluştur</h2>
+                    <form onsubmit="handleAddArticle(event)" class="space-y-6">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <input name="title" required placeholder="Başlık" class="w-full p-3 bg-gray-50 dark:bg-gray-900 border rounded">
+                            <input name="author" required placeholder="Yazar" class="w-full p-3 bg-gray-50 dark:bg-gray-900 border rounded">
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div class="h-32 overflow-y-auto custom-scrollbar p-3 border rounded bg-gray-50 dark:bg-gray-900">
+                                ${state.categories.map(c => `
+                                    <label class="flex items-center space-x-2 mb-2 cursor-pointer">
+                                        <input type="checkbox" name="categories" value="${c.name}" class="rounded">
+                                        <span class="text-sm">${c.name}</span>
+                                    </label>
+                                `).join('')}
+                            </div>
+                            <input name="imageUrl" placeholder="Kapak Görseli URL" class="w-full p-3 bg-gray-50 dark:bg-gray-900 border rounded">
+                        </div>
+                        <div class="text-xs text-gray-500">İçerik için HTML kullanabilirsiniz (örn: &lt;p&gt;, &lt;img&gt;, &lt;b&gt;)</div>
+                        <textarea name="content" required rows="6" placeholder="İçerik (HTML)" class="w-full p-4 bg-gray-50 dark:bg-gray-900 border rounded font-mono text-sm"></textarea>
+                        <button class="w-full bg-black text-white dark:bg-white dark:text-black py-4 rounded font-bold uppercase hover:opacity-90">Listeye Ekle</button>
+                    </form>
+                </div>
+
+                 <div class="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
+                    <h2 class="text-xl font-serif font-bold mb-6">Mevcut Makaleler</h2>
+                    <div class="space-y-4 max-h-[500px] overflow-y-auto custom-scrollbar">
+                        ${state.articles.map(article => `
+                            <div class="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900 rounded-lg">
+                                <div>
+                                    <h3 class="font-bold text-lg">${article.title}</h3>
+                                    <div class="text-xs text-gray-500 mt-1">${article.date} • ${article.author}</div>
+                                </div>
+                                <button onclick="handleDeleteArticle(${article.id})" class="text-xs bg-red-100 text-red-600 px-3 py-2 rounded">Sil</button>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right: Config -->
+            <div class="lg:col-span-1 space-y-8">
+                <!-- Announcement -->
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
+                    <h2 class="text-lg font-serif font-bold mb-4">Duyuru</h2>
+                    <form onsubmit="handleUpdateAnnouncement(event)" class="flex flex-col gap-3">
+                        <input id="announcement-text" value="${state.announcement.text || ''}" class="w-full p-3 bg-gray-50 dark:bg-gray-900 border rounded">
+                        <div class="flex gap-2">
+                            <button type="button" onclick="toggleAnnouncementActive()" class="flex-1 py-2 border rounded text-xs font-bold ${state.announcement.active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-500'}">
+                                ${state.announcement.active ? 'AKTİF' : 'PASİF'}
+                            </button>
+                            <button class="flex-1 py-2 bg-black text-white dark:bg-white dark:text-black rounded text-xs font-bold">GÜNCELLE</button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Files -->
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
+                    <h2 class="text-lg font-serif font-bold mb-4">Dosyalar (Resources)</h2>
+                    <form onsubmit="handleFileUpload(event)" class="space-y-3 mb-4">
+                        <input type="text" id="file-name" placeholder="İsim (Opsiyonel)" class="w-full p-2 text-sm bg-gray-50 dark:bg-gray-900 border rounded">
+                        <input type="file" id="file-input" accept="image/*" class="w-full text-xs">
+                        <button class="w-full py-2 bg-blue-600 text-white rounded text-sm font-bold">YÜKLE</button>
+                    </form>
+                    <div class="space-y-4 max-h-[300px] overflow-y-auto custom-scrollbar">
+                        ${state.files.map(f => `
+                            <div class="p-3 bg-gray-50 dark:bg-gray-900 rounded border">
+                                <div class="flex items-center justify-between mb-2">
+                                    <span class="text-xs font-bold truncate w-24">${f.name}</span>
+                                    <button onclick="handleDeleteFile(${f.id})" class="text-xs text-red-500">Sil</button>
+                                </div>
+                                <img src="${f.data}" class="w-full h-24 object-cover rounded mb-2 bg-gray-200">
+                                <button onclick="copyToClipboard('${f.data}')" class="w-full py-1 bg-gray-200 dark:bg-gray-700 text-[10px] font-bold rounded">URL Kopyala</button>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+
+                <!-- Categories -->
+                 <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
+                    <h2 class="text-lg font-serif font-bold mb-4">Kategoriler</h2>
+                    <form onsubmit="handleAddCategory(event)" class="mb-4 space-y-2">
+                        <input name="catName" required placeholder="Adı" class="w-full p-2 bg-gray-50 dark:bg-gray-900 border rounded text-sm">
+                        <select name="catType" class="w-full p-2 bg-gray-50 dark:bg-gray-900 border rounded text-sm">
+                            <option value="main">Ana Kategori</option>
+                            <option value="sub">Alt Kategori</option>
+                            <option value="year">Yıl</option>
+                        </select>
+                        <button class="w-full py-2 bg-blue-600 text-white rounded text-sm font-bold">EKLE</button>
+                    </form>
+                    <div class="space-y-2 max-h-[200px] overflow-y-auto custom-scrollbar">
+                        ${state.categories.map(c => `
+                            <div class="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-900 rounded text-sm">
+                                <span>${c.name}</span>
+                                <button onclick="handleDeleteCategory(${c.id})" class="text-red-400">×</button>
+                            </div>
+                        `).join('')}
+                    </div>
+                 </div>
+            </div>
+        </div>
+    </div>
+`;
+
+// --- GLOBAL HANDLERS (Must be attached to window for HTML onclick) ---
 
 window.handleLogin = (e) => {
     e.preventDefault();
@@ -336,7 +479,8 @@ window.handleLogin = (e) => {
     if (pass === 'admin123') {
         state.isAuthenticated = true;
         sessionStorage.setItem('admin_auth', 'true');
-        renderAdmin();
+        const adminApp = document.getElementById('admin-app');
+        renderAdmin(adminApp);
     } else {
         alert('Hatalı şifre!');
     }
@@ -345,7 +489,8 @@ window.handleLogin = (e) => {
 window.handleLogout = () => {
     state.isAuthenticated = false;
     sessionStorage.removeItem('admin_auth');
-    renderAdmin();
+    const adminApp = document.getElementById('admin-app');
+    renderAdmin(adminApp);
 };
 
 window.saveChanges = async () => {
@@ -401,15 +546,17 @@ window.handleAddArticle = (e) => {
     };
     
     state.articles.unshift(newArticle);
-    alert('Makale eklendi. "KAYDET" butonuna basın.');
+    alert('Makale geçici olarak eklendi. "KAYDET" butonuna basarak yayınlayın.');
     e.target.reset();
-    renderAdmin();
+    const adminApp = document.getElementById('admin-app');
+    renderAdmin(adminApp);
 };
 
 window.handleDeleteArticle = (id) => {
     if (confirm('Silmek istediğinize emin misiniz?')) {
         state.articles = state.articles.filter(a => a.id !== id);
-        renderAdmin();
+        const adminApp = document.getElementById('admin-app');
+        renderAdmin(adminApp);
     }
 };
 
@@ -421,14 +568,16 @@ window.handleAddCategory = (e) => {
     
     if (name) {
         state.categories.push({ id: Date.now(), name: name, type: type });
-        renderAdmin();
+        const adminApp = document.getElementById('admin-app');
+        renderAdmin(adminApp);
     }
 };
 
 window.handleDeleteCategory = (id) => {
     if (confirm('Kategori silinsin mi?')) {
         state.categories = state.categories.filter(c => c.id !== id);
-        renderAdmin();
+        const adminApp = document.getElementById('admin-app');
+        renderAdmin(adminApp);
     }
 };
 
@@ -436,12 +585,16 @@ window.handleUpdateAnnouncement = (e) => {
     e.preventDefault();
     const text = document.getElementById('announcement-text').value;
     state.announcement.text = text;
-    renderAdmin();
+    // UI Update only, user must Save
+    const adminApp = document.getElementById('admin-app');
+    renderAdmin(adminApp);
+    alert('Duyuru güncellendi. "KAYDET" butonuna basmayı unutmayın.');
 };
 
 window.toggleAnnouncementActive = () => {
     state.announcement.active = !state.announcement.active;
-    renderAdmin();
+    const adminApp = document.getElementById('admin-app');
+    renderAdmin(adminApp);
 };
 
 window.handleFileUpload = async (e) => {
@@ -470,7 +623,8 @@ window.handleFileUpload = async (e) => {
                     data: result.url 
                 });
                 alert('Dosya yüklendi! "KAYDET" butonuna basınız.');
-                renderAdmin();
+                const adminApp = document.getElementById('admin-app');
+                renderAdmin(adminApp);
             } else {
                 alert("Yükleme başarısız.");
             }
@@ -484,7 +638,8 @@ window.handleFileUpload = async (e) => {
 window.handleDeleteFile = (id) => {
     if(confirm("Dosya listeden kaldırılsın mı?")) {
         state.files = state.files.filter(f => f.id !== id);
-        renderAdmin();
+        const adminApp = document.getElementById('admin-app');
+        renderAdmin(adminApp);
     }
 };
 
@@ -493,135 +648,6 @@ window.copyToClipboard = (text) => {
         alert("URL Kopyalandı!");
     });
 };
-
-const renderLogin = () => `
-    <div class="flex items-center justify-center min-h-screen bg-paper dark:bg-gray-900">
-        <form onsubmit="handleLogin(event)" class="w-full max-w-md p-10 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-100 dark:border-gray-700">
-            <div class="text-center mb-8">
-                <h2 class="text-3xl font-serif font-bold mb-2">Yönetici Paneli</h2>
-            </div>
-            <div class="mb-6">
-                <input type="password" id="admin-pass" class="w-full p-4 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg outline-none" placeholder="Şifre">
-            </div>
-            <button type="submit" class="w-full bg-ink text-paper dark:bg-white dark:text-black py-4 rounded-lg font-bold">GİRİŞ YAP</button>
-        </form>
-    </div>
-`;
-
-const renderDashboard = () => `
-    <div class="max-w-7xl mx-auto py-8">
-        <header class="flex flex-col md:flex-row justify-between items-end mb-12 border-b border-gray-200 dark:border-gray-700 pb-6 gap-4">
-            <div>
-                <h1 class="text-4xl font-serif font-bold mb-2">Admin Paneli</h1>
-                <p class="text-gray-500">Düzenlemeleri yaptıktan sonra <span class="font-bold">KAYDET</span> butonuna basın.</p>
-            </div>
-            <div class="flex gap-4">
-                 <button onclick="saveChanges()" class="px-6 py-3 bg-black text-white dark:bg-white dark:text-black rounded font-bold">DEĞİŞİKLİKLERİ KAYDET</button>
-                 <button onclick="handleLogout()" class="px-4 py-3 border border-red-200 text-red-500 rounded">Çıkış</button>
-            </div>
-        </header>
-
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-12">
-            <div class="lg:col-span-2 space-y-12">
-                <div class="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
-                    <h2 class="text-2xl font-serif font-bold mb-6">Makale Oluştur</h2>
-                    <form onsubmit="handleAddArticle(event)" class="space-y-6">
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <input name="title" required placeholder="Başlık" class="w-full p-3 bg-gray-50 dark:bg-gray-900 border rounded">
-                            <input name="author" required placeholder="Yazar" class="w-full p-3 bg-gray-50 dark:bg-gray-900 border rounded">
-                        </div>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div class="h-32 overflow-y-auto custom-scrollbar p-3 border rounded bg-gray-50 dark:bg-gray-900">
-                                ${state.categories.map(c => `
-                                    <label class="flex items-center space-x-2 mb-2 cursor-pointer">
-                                        <input type="checkbox" name="categories" value="${c.name}" class="rounded">
-                                        <span class="text-sm">${c.name}</span>
-                                    </label>
-                                `).join('')}
-                            </div>
-                            <input name="imageUrl" placeholder="Kapak Görseli URL" class="w-full p-3 bg-gray-50 dark:bg-gray-900 border rounded">
-                        </div>
-                        <textarea name="content" required rows="6" placeholder="İçerik (HTML)" class="w-full p-4 bg-gray-50 dark:bg-gray-900 border rounded font-mono text-sm"></textarea>
-                        <button class="w-full bg-black text-white dark:bg-white dark:text-black py-4 rounded font-bold">LİSTEYE EKLE</button>
-                    </form>
-                </div>
-
-                 <div class="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
-                    <h2 class="text-xl font-serif font-bold mb-6">Mevcut Makaleler</h2>
-                    <div class="space-y-4 max-h-[500px] overflow-y-auto custom-scrollbar">
-                        ${state.articles.map(article => `
-                            <div class="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900 rounded-lg">
-                                <div>
-                                    <h3 class="font-bold text-lg">${article.title}</h3>
-                                    <div class="text-xs text-gray-500 mt-1">${article.date} • ${article.author}</div>
-                                </div>
-                                <button onclick="handleDeleteArticle(${article.id})" class="text-xs bg-red-100 text-red-600 px-3 py-2 rounded">Sil</button>
-                            </div>
-                        `).join('')}
-                    </div>
-                </div>
-            </div>
-
-            <div class="lg:col-span-1 space-y-8">
-                <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
-                    <h2 class="text-lg font-serif font-bold mb-4">Duyuru</h2>
-                    <form onsubmit="handleUpdateAnnouncement(event)" class="flex flex-col gap-3">
-                        <input id="announcement-text" value="${state.announcement.text || ''}" class="w-full p-3 bg-gray-50 dark:bg-gray-900 border rounded">
-                        <div class="flex gap-2">
-                            <button type="button" onclick="toggleAnnouncementActive()" class="flex-1 py-2 border rounded text-xs font-bold ${state.announcement.active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-500'}">
-                                ${state.announcement.active ? 'AKTİF' : 'PASİF'}
-                            </button>
-                            <button class="flex-1 py-2 bg-black text-white dark:bg-white dark:text-black rounded text-xs font-bold">GÜNCELLE</button>
-                        </div>
-                    </form>
-                </div>
-
-                <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
-                    <h2 class="text-lg font-serif font-bold mb-4">Dosyalar (Resources)</h2>
-                    <form onsubmit="handleFileUpload(event)" class="space-y-3 mb-4">
-                        <input type="text" id="file-name" placeholder="İsim (Opsiyonel)" class="w-full p-2 text-sm bg-gray-50 dark:bg-gray-900 border rounded">
-                        <input type="file" id="file-input" accept="image/*" class="w-full text-xs">
-                        <button class="w-full py-2 bg-blue-600 text-white rounded text-sm font-bold">YÜKLE</button>
-                    </form>
-                    <div class="space-y-4 max-h-[300px] overflow-y-auto custom-scrollbar">
-                        ${state.files.map(f => `
-                            <div class="p-3 bg-gray-50 dark:bg-gray-900 rounded border">
-                                <div class="flex items-center justify-between mb-2">
-                                    <span class="text-xs font-bold truncate w-24">${f.name}</span>
-                                    <button onclick="handleDeleteFile(${f.id})" class="text-xs text-red-500">Sil</button>
-                                </div>
-                                <img src="${f.data}" class="w-full h-24 object-cover rounded mb-2 bg-gray-200">
-                                <button onclick="copyToClipboard('${f.data}')" class="w-full py-1 bg-gray-200 dark:bg-gray-700 text-[10px] font-bold rounded">URL Kopyala</button>
-                            </div>
-                        `).join('')}
-                    </div>
-                </div>
-
-                 <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
-                    <h2 class="text-lg font-serif font-bold mb-4">Kategoriler</h2>
-                    <form onsubmit="handleAddCategory(event)" class="mb-4 space-y-2">
-                        <input name="catName" required placeholder="Adı" class="w-full p-2 bg-gray-50 dark:bg-gray-900 border rounded text-sm">
-                        <select name="catType" class="w-full p-2 bg-gray-50 dark:bg-gray-900 border rounded text-sm">
-                            <option value="main">Ana Kategori</option>
-                            <option value="sub">Alt Kategori</option>
-                            <option value="year">Yıl</option>
-                        </select>
-                        <button class="w-full py-2 bg-blue-600 text-white rounded text-sm font-bold">EKLE</button>
-                    </form>
-                    <div class="space-y-2 max-h-[200px] overflow-y-auto custom-scrollbar">
-                        ${state.categories.map(c => `
-                            <div class="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-900 rounded text-sm">
-                                <span>${c.name}</span>
-                                <button onclick="handleDeleteCategory(${c.id})" class="text-red-400">×</button>
-                            </div>
-                        `).join('')}
-                    </div>
-                 </div>
-            </div>
-        </div>
-    </div>
-`;
-
 
 // --- EVENTS ---
 document.addEventListener('DOMContentLoaded', initApp);
