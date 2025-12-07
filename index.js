@@ -6,12 +6,26 @@ let state = {
     announcement: { text: '', active: false },
     files: [], 
     isAuthenticated: false,
-    darkMode: localStorage.getItem('mimos_theme') === 'dark',
-    menuOpen: false
+    darkMode: false, 
+    menuOpen: false,
+    editingId: null // New: To track which article is being edited
 };
 
 // --- DATA FETCHING (SHARED) ---
 const initApp = async () => {
+    // 1. Theme Logic (System Sync if no preference)
+    const storedTheme = localStorage.getItem('mimos_theme');
+    if (storedTheme) {
+        state.darkMode = storedTheme === 'dark';
+    } else {
+        // Check system preference
+        state.darkMode = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    }
+    
+    // Apply theme immediately
+    if (state.darkMode) document.documentElement.classList.add('dark');
+    else document.documentElement.classList.remove('dark');
+
     try {
         const response = await fetch('/api/data');
         if (!response.ok) throw new Error(`HTTP Hata: ${response.status}`);
@@ -25,33 +39,25 @@ const initApp = async () => {
         
         // --- ROUTING / VIEW LOGIC ---
         const adminApp = document.getElementById('admin-app');
-        const publicApp = document.getElementById('app'); // Home container
-        const searchApp = document.getElementById('search-results'); // Search container
+        const publicApp = document.getElementById('app'); 
+        const searchApp = document.getElementById('search-results'); 
 
-        // 1. Sidebar'ı her sayfada doldur
         renderSidebarCategories();
-        
-        // 2. Duyuruyu her sayfada göster
         renderAnnouncement();
 
-        // 3. Sayfa içeriğine göre render
         if (adminApp) {
-            // Admin Page
             if(sessionStorage.getItem('admin_auth') === 'true') {
                 state.isAuthenticated = true;
             }
             renderAdmin(adminApp);
         } else if (searchApp) {
-            // Search Page
             renderSearch(searchApp);
         } else if (publicApp) {
-            // Home Page
             renderHome(publicApp);
         }
         
     } catch (error) {
         console.error("Veri yükleme hatası:", error);
-        // Hata durumunda kullanıcıya bilgi ver
         const errorHTML = `
             <div class="flex items-center justify-center min-h-[50vh]">
                 <div class="p-6 text-center bg-red-50 border border-red-200 rounded-lg max-w-md">
@@ -79,8 +85,6 @@ const toggleTheme = () => {
         localStorage.setItem('mimos_theme', 'light');
     }
 };
-// Initialize Theme
-if (state.darkMode) document.documentElement.classList.add('dark');
 
 const toggleMenu = (force) => {
     const sidebar = document.getElementById('sidebar');
@@ -97,7 +101,6 @@ const toggleMenu = (force) => {
     }
 };
 
-// Global Search Handler (for Forms)
 window.handleSearch = (e) => {
     e.preventDefault();
     const formData = new FormData(e.target);
@@ -107,8 +110,6 @@ window.handleSearch = (e) => {
         alert("Arama yapmak için en az 3 karakter girmelisiniz.");
         return;
     }
-    
-    // Redirect to search page
     window.location.href = `/search.html?q=${encodeURIComponent(query)}`;
 };
 
@@ -134,7 +135,6 @@ const renderAnnouncement = () => {
 };
 
 window.closeAnnouncement = () => {
-    // Sadece UI'dan kaldır, state'i kaydetmeye gerek yok (kalıcı olması isteniyorsa admin'den kapatılmalı)
     const container = document.getElementById('announcement-container');
     if(container) container.innerHTML = '';
 };
@@ -326,7 +326,7 @@ const renderSearch = (container) => {
 
 
 // ==========================================
-// ADMIN PANEL LOGIC (MERGED)
+// ADMIN PANEL LOGIC (MERGED & REDESIGNED)
 // ==========================================
 
 const renderAdmin = (container) => {
@@ -351,7 +351,23 @@ const renderLogin = () => `
     </div>
 `;
 
-const renderDashboard = () => `
+const renderDashboard = () => {
+    // Prep data for edit mode
+    let editArticle = null;
+    let publishDate = new Date().toISOString().split('T')[0]; // Default today
+
+    if (state.editingId) {
+        editArticle = state.articles.find(a => a.id === state.editingId);
+        if (editArticle) {
+            // Convert "12 Ekim 2023" like strings back to YYYY-MM-DD isn't easy without a library.
+            // For simplicity, if editing, we might reset date or keep existing string in a hidden field?
+            // BETTER: Let's assume user picks a new date or we try to parse. 
+            // Since we stored date as a localized string, we can't easily put it into <input type="date">.
+            // We will just let the user pick a new date if they want to change it.
+        }
+    }
+
+    return `
     <div class="max-w-7xl mx-auto py-8">
         <header class="flex flex-col md:flex-row justify-between items-end mb-12 border-b border-gray-200 dark:border-gray-700 pb-6 gap-4">
             <div>
@@ -365,42 +381,61 @@ const renderDashboard = () => `
         </header>
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-12">
-            <!-- Left: Article & List -->
+            <!-- Left: Article Form -->
             <div class="lg:col-span-2 space-y-12">
-                <div class="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
-                    <h2 class="text-2xl font-serif font-bold mb-6">Makale Oluştur</h2>
+                <div class="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 relative">
+                    ${state.editingId ? `<div class="absolute top-4 right-4 bg-blue-100 text-blue-800 text-xs font-bold px-2 py-1 rounded">DÜZENLEME MODU</div>` : ''}
+                    
+                    <h2 class="text-2xl font-serif font-bold mb-6">${state.editingId ? 'Makaleyi Düzenle' : 'Makale Oluştur'}</h2>
+                    
                     <form onsubmit="handleAddArticle(event)" class="space-y-6">
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <input name="title" required placeholder="Başlık" class="w-full p-3 bg-gray-50 dark:bg-gray-900 border rounded">
-                            <input name="author" required placeholder="Yazar" class="w-full p-3 bg-gray-50 dark:bg-gray-900 border rounded">
+                            <input name="title" required placeholder="Başlık" value="${editArticle ? editArticle.title : ''}" class="w-full p-3 bg-gray-50 dark:bg-gray-900 border rounded">
+                            <input name="author" required placeholder="Yazar" value="${editArticle ? editArticle.author : ''}" class="w-full p-3 bg-gray-50 dark:bg-gray-900 border rounded">
                         </div>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div class="h-32 overflow-y-auto custom-scrollbar p-3 border rounded bg-gray-50 dark:bg-gray-900">
+                             <input type="date" name="dateInput" class="w-full p-3 bg-gray-50 dark:bg-gray-900 border rounded text-gray-500">
+                             <input name="imageUrl" placeholder="Kapak Görseli URL" value="${editArticle ? editArticle.imageUrl : ''}" class="w-full p-3 bg-gray-50 dark:bg-gray-900 border rounded">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-bold mb-2 text-gray-500">Kategoriler</label>
+                            <div class="flex flex-wrap gap-4 p-4 border rounded bg-gray-50 dark:bg-gray-900">
                                 ${state.categories.map(c => `
-                                    <label class="flex items-center space-x-2 mb-2 cursor-pointer">
-                                        <input type="checkbox" name="categories" value="${c.name}" class="rounded">
+                                    <label class="flex items-center space-x-2 cursor-pointer">
+                                        <input type="checkbox" name="categories" value="${c.name}" class="rounded w-4 h-4" 
+                                            ${(editArticle && editArticle.categories.includes(c.name)) ? 'checked' : ''}>
                                         <span class="text-sm">${c.name}</span>
                                     </label>
                                 `).join('')}
                             </div>
-                            <input name="imageUrl" placeholder="Kapak Görseli URL" class="w-full p-3 bg-gray-50 dark:bg-gray-900 border rounded">
                         </div>
+
                         <div class="text-xs text-gray-500">İçerik için HTML kullanabilirsiniz (örn: &lt;p&gt;, &lt;img&gt;, &lt;b&gt;)</div>
-                        <textarea name="content" required rows="6" placeholder="İçerik (HTML)" class="w-full p-4 bg-gray-50 dark:bg-gray-900 border rounded font-mono text-sm"></textarea>
-                        <button class="w-full bg-black text-white dark:bg-white dark:text-black py-4 rounded font-bold uppercase hover:opacity-90">Listeye Ekle</button>
+                        <textarea name="content" required rows="10" placeholder="İçerik (HTML)" class="w-full p-4 bg-gray-50 dark:bg-gray-900 border rounded font-mono text-sm">${editArticle ? editArticle.content : ''}</textarea>
+                        
+                        <div class="flex gap-4">
+                            <button class="flex-1 bg-black text-white dark:bg-white dark:text-black py-4 rounded font-bold uppercase hover:opacity-90">
+                                ${state.editingId ? 'GÜNCELLE' : 'LİSTEYE EKLE'}
+                            </button>
+                            ${state.editingId ? `<button type="button" onclick="cancelEdit()" class="px-6 border border-gray-300 rounded hover:bg-gray-100 dark:hover:bg-gray-700">Vazgeç</button>` : ''}
+                        </div>
                     </form>
                 </div>
 
                  <div class="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
                     <h2 class="text-xl font-serif font-bold mb-6">Mevcut Makaleler</h2>
-                    <div class="space-y-4 max-h-[500px] overflow-y-auto custom-scrollbar">
+                    <div class="space-y-2 max-h-[500px] overflow-y-auto custom-scrollbar">
                         ${state.articles.map(article => `
-                            <div class="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900 rounded-lg">
+                            <div class="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition">
                                 <div>
                                     <h3 class="font-bold text-lg">${article.title}</h3>
                                     <div class="text-xs text-gray-500 mt-1">${article.date} • ${article.author}</div>
                                 </div>
-                                <button onclick="handleDeleteArticle(${article.id})" class="text-xs bg-red-100 text-red-600 px-3 py-2 rounded">Sil</button>
+                                <div class="flex gap-2">
+                                    <button onclick="handleEditArticle(${article.id})" class="text-xs bg-blue-100 text-blue-600 px-3 py-2 rounded font-bold hover:bg-blue-200">Düzenle</button>
+                                    <button onclick="handleDeleteArticle(${article.id})" class="text-xs bg-red-100 text-red-600 px-3 py-2 rounded font-bold hover:bg-red-200">Sil</button>
+                                </div>
                             </div>
                         `).join('')}
                     </div>
@@ -421,28 +456,6 @@ const renderDashboard = () => `
                             <button class="flex-1 py-2 bg-black text-white dark:bg-white dark:text-black rounded text-xs font-bold">GÜNCELLE</button>
                         </div>
                     </form>
-                </div>
-
-                <!-- Files -->
-                <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
-                    <h2 class="text-lg font-serif font-bold mb-4">Dosyalar (Resources)</h2>
-                    <form onsubmit="handleFileUpload(event)" class="space-y-3 mb-4">
-                        <input type="text" id="file-name" placeholder="İsim (Opsiyonel)" class="w-full p-2 text-sm bg-gray-50 dark:bg-gray-900 border rounded">
-                        <input type="file" id="file-input" accept="image/*" class="w-full text-xs">
-                        <button class="w-full py-2 bg-blue-600 text-white rounded text-sm font-bold">YÜKLE</button>
-                    </form>
-                    <div class="space-y-4 max-h-[300px] overflow-y-auto custom-scrollbar">
-                        ${state.files.map(f => `
-                            <div class="p-3 bg-gray-50 dark:bg-gray-900 rounded border">
-                                <div class="flex items-center justify-between mb-2">
-                                    <span class="text-xs font-bold truncate w-24">${f.name}</span>
-                                    <button onclick="handleDeleteFile(${f.id})" class="text-xs text-red-500">Sil</button>
-                                </div>
-                                <img src="${f.data}" class="w-full h-24 object-cover rounded mb-2 bg-gray-200">
-                                <button onclick="copyToClipboard('${f.data}')" class="w-full py-1 bg-gray-200 dark:bg-gray-700 text-[10px] font-bold rounded">URL Kopyala</button>
-                            </div>
-                        `).join('')}
-                    </div>
                 </div>
 
                 <!-- Categories -->
@@ -467,11 +480,45 @@ const renderDashboard = () => `
                     </div>
                  </div>
             </div>
+            
+            <!-- Bottom: Files (Moved here for more space) -->
+            <div class="lg:col-span-3">
+                 <div class="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
+                    <h2 class="text-2xl font-serif font-bold mb-6">Dosyalar (Resources)</h2>
+                    
+                    <form onsubmit="handleFileUpload(event)" class="flex gap-4 mb-8 items-end bg-gray-50 dark:bg-gray-900 p-4 rounded">
+                        <div class="flex-grow">
+                            <label class="block text-xs font-bold text-gray-500 mb-1">Dosya Adı (Opsiyonel)</label>
+                            <input type="text" id="file-name" class="w-full p-2 text-sm border rounded bg-white dark:bg-gray-800">
+                        </div>
+                        <div class="flex-grow">
+                            <label class="block text-xs font-bold text-gray-500 mb-1">Dosya Seç</label>
+                            <input type="file" id="file-input" accept="image/*" class="w-full text-xs">
+                        </div>
+                        <button class="px-6 py-2 bg-blue-600 text-white rounded text-sm font-bold h-10">YÜKLE</button>
+                    </form>
+
+                    <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 max-h-[400px] overflow-y-auto custom-scrollbar">
+                        ${state.files.map(f => `
+                            <div class="p-3 bg-gray-50 dark:bg-gray-900 rounded border group relative">
+                                <img src="${f.data}" class="w-full h-32 object-cover rounded mb-2 bg-gray-200">
+                                <div class="text-xs font-bold truncate mb-2">${f.name}</div>
+                                <div class="flex flex-col gap-1">
+                                    <button onclick="copyToClipboard('${f.data}')" class="w-full py-1 bg-gray-200 dark:bg-gray-700 text-[10px] font-bold rounded hover:bg-gray-300">KOPYALA</button>
+                                    <button onclick="handleDeleteFile(${f.id})" class="w-full py-1 bg-red-100 text-red-600 text-[10px] font-bold rounded hover:bg-red-200">SİL</button>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            </div>
+
         </div>
     </div>
-`;
+    `;
+};
 
-// --- GLOBAL HANDLERS (Must be attached to window for HTML onclick) ---
+// --- GLOBAL HANDLERS ---
 
 window.handleLogin = (e) => {
     e.preventDefault();
@@ -519,6 +566,21 @@ window.saveChanges = async () => {
     }
 };
 
+// New: Handle Edit Click
+window.handleEditArticle = (id) => {
+    state.editingId = id;
+    const adminApp = document.getElementById('admin-app');
+    renderAdmin(adminApp);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+};
+
+// New: Cancel Edit
+window.cancelEdit = () => {
+    state.editingId = null;
+    const adminApp = document.getElementById('admin-app');
+    renderAdmin(adminApp);
+};
+
 window.handleAddArticle = (e) => {
     e.preventDefault();
     const formData = new FormData(e.target);
@@ -533,20 +595,48 @@ window.handleAddArticle = (e) => {
         return;
     }
 
-    const newArticle = {
-        id: Date.now(),
+    // Handle Date: if input is empty, use today or existing
+    let articleDateStr = new Date().toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' });
+    const dateInput = formData.get('dateInput');
+    if (dateInput) {
+        // Convert YYYY-MM-DD to Turkish format approx
+        const d = new Date(dateInput);
+        articleDateStr = d.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' });
+    } else if (state.editingId) {
+        // If not editing date, keep old date? For simplicity we might just reset to Today if not provided
+        const old = state.articles.find(a => a.id === state.editingId);
+        if(old) articleDateStr = old.date;
+    }
+
+    const articleData = {
         title: formData.get('title'),
         author: formData.get('author'),
         categories: selectedCategories,
         imageUrl: formData.get('imageUrl'),
         content: formData.get('content'),
         excerpt: formData.get('content').replace(/<[^>]*>?/gm, '').substring(0, 100) + '...',
-        date: new Date().toLocaleDateString('tr-TR'),
-        views: 0
+        date: articleDateStr,
+        views: state.editingId ? (state.articles.find(a => a.id === state.editingId)?.views || 0) : 0
     };
+
+    if (state.editingId) {
+        // UPDATE Existing
+        const index = state.articles.findIndex(a => a.id === state.editingId);
+        if (index !== -1) {
+            state.articles[index] = { ...state.articles[index], ...articleData };
+            alert('Makale güncellendi. "KAYDET" butonuna basmayı unutmayın.');
+        }
+        state.editingId = null;
+    } else {
+        // CREATE New
+        const newArticle = {
+            id: Date.now(),
+            ...articleData
+        };
+        state.articles.unshift(newArticle);
+        alert('Makale eklendi. "KAYDET" butonuna basın.');
+    }
     
-    state.articles.unshift(newArticle);
-    alert('Makale geçici olarak eklendi. "KAYDET" butonuna basarak yayınlayın.');
     e.target.reset();
     const adminApp = document.getElementById('admin-app');
     renderAdmin(adminApp);
@@ -555,6 +645,9 @@ window.handleAddArticle = (e) => {
 window.handleDeleteArticle = (id) => {
     if (confirm('Silmek istediğinize emin misiniz?')) {
         state.articles = state.articles.filter(a => a.id !== id);
+        // Also if we were editing it, cancel edit
+        if(state.editingId === id) state.editingId = null;
+        
         const adminApp = document.getElementById('admin-app');
         renderAdmin(adminApp);
     }
@@ -585,7 +678,6 @@ window.handleUpdateAnnouncement = (e) => {
     e.preventDefault();
     const text = document.getElementById('announcement-text').value;
     state.announcement.text = text;
-    // UI Update only, user must Save
     const adminApp = document.getElementById('admin-app');
     renderAdmin(adminApp);
     alert('Duyuru güncellendi. "KAYDET" butonuna basmayı unutmayın.');
@@ -652,7 +744,6 @@ window.copyToClipboard = (text) => {
 // --- EVENTS ---
 document.addEventListener('DOMContentLoaded', initApp);
 
-// Public Events
 const menuBtn = document.getElementById('menu-btn');
 if(menuBtn) menuBtn.addEventListener('click', () => toggleMenu(true));
 
