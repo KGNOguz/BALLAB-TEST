@@ -17,8 +17,22 @@ const ARTICLES_DIR = path.join(__dirname, 'articles');
 // --- SETUP DIRS ---
 if (!fs.existsSync(RESOURCES_DIR)) fs.mkdirSync(RESOURCES_DIR, { recursive: true });
 if (!fs.existsSync(ARTICLES_DIR)) fs.mkdirSync(ARTICLES_DIR, { recursive: true });
+
+// Initialize Data File if not exists or empty
 if (!fs.existsSync(DATA_FILE)) {
-    fs.writeFileSync(DATA_FILE, JSON.stringify({ articles: [], categories: [], announcement: {}, files: [], messages: [] }));
+    const initialData = { 
+        articles: [], 
+        categories: [], 
+        announcement: { text: "Yayındayız!", active: true }, 
+        files: [], 
+        messages: [],
+        adminConfig: { password: "admin123" }, // Default password
+        ads: {
+            ad1: "https://placehold.co/400x300?text=REKLAM+ALANI+1",
+            ad2: "https://placehold.co/400x300?text=REKLAM+ALANI+2"
+        }
+    };
+    fs.writeFileSync(DATA_FILE, JSON.stringify(initialData, null, 2));
 }
 
 // --- MIDDLEWARE ---
@@ -32,15 +46,17 @@ app.use(bodyParser.urlencoded({ extended: true, limit: '50mb' }));
 app.get('/api/data', (req, res) => {
     fs.readFile(DATA_FILE, 'utf8', (err, data) => {
         if (err) {
-            console.error("Data Read Error:", err);
-            return res.json({ articles: [], categories: [], announcement: {}, files: [], messages: [] });
+            return res.json({ articles: [], categories: [], announcement: {}, files: [], messages: [], adminConfig: {password: "admin123"}, ads: {} });
         }
         try { 
             const json = JSON.parse(data);
-            if(!json.messages) json.messages = []; // Ensure messages array exists
+            // Ensure structure exists for older data files
+            if(!json.messages) json.messages = []; 
+            if(!json.adminConfig) json.adminConfig = { password: "admin123" };
+            if(!json.ads) json.ads = { ad1: "", ad2: "" };
             res.json(json); 
         } catch (e) { 
-            res.json({ articles: [], categories: [], announcement: {}, files: [], messages: [] }); 
+            res.json({ articles: [], categories: [], announcement: {}, files: [], messages: [], adminConfig: {password: "admin123"}, ads: {} }); 
         }
     });
 });
@@ -136,11 +152,6 @@ app.use(express.static(__dirname));
 
 // --- TEMPLATE ---
 const generateArticleHTML = (article) => {
-    // Pastel colors logic requires client-side JS or pre-calculation. 
-    // Here we will just use a generic style for static HTML, or inline simple randoms.
-    // To match the main site perfectly, we use a simple hash in JS on client side.
-    // For static HTML, we'll keep it simple or inject the same script logic.
-    
     return `
 <!DOCTYPE html>
 <html lang="tr">
@@ -270,7 +281,7 @@ const generateArticleHTML = (article) => {
         const viewKey = 'view_cooldown_${article.id}';
         const lastView = localStorage.getItem(viewKey);
         const now = Date.now();
-        const cooldown = 300000; // 10 minutes
+        const cooldown = 600000; // 10 minutes
 
         if (!lastView || now - parseInt(lastView) > cooldown) {
             fetch('/api/view/${article.id}', { method: 'POST' }).catch(e => console.error(e));

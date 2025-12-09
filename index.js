@@ -6,13 +6,15 @@ let state = {
     categories: [],
     announcement: { text: '', active: false },
     files: [], 
-    messages: [], // New: Contact messages
+    messages: [], 
+    adminConfig: { password: 'admin123' }, // Default safe fallback logic handled in API init
+    ads: { ad1: '', ad2: '' }, // New: Ads state
     isAuthenticated: false,
     darkMode: false, 
     menuOpen: false,
     editingId: null,
     visibleCount: 5,
-    activeAdminTab: 'dashboard' // New: For Admin Tab switching
+    activeAdminTab: 'dashboard'
 };
 
 // --- DATA FETCHING (SHARED) ---
@@ -37,7 +39,9 @@ const initApp = async () => {
         state.categories = data.categories || [];
         state.announcement = data.announcement || { text: '', active: false };
         state.files = data.files || [];
-        state.messages = data.messages || []; // Load messages
+        state.messages = data.messages || [];
+        state.adminConfig = data.adminConfig || { password: 'admin123' };
+        state.ads = data.ads || { ad1: '', ad2: '' };
         
         const adminApp = document.getElementById('admin-app');
         const publicApp = document.getElementById('app'); 
@@ -88,11 +92,8 @@ window.getCategoryStyle = (name) => {
         'bg-pink-100 text-pink-800 dark:bg-pink-900/30 dark:text-pink-300',
         'bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-300'
     ];
-    
     let sum = 0;
-    for (let i = 0; i < name.length; i++) {
-        sum += name.charCodeAt(i);
-    }
+    for (let i = 0; i < name.length; i++) { sum += name.charCodeAt(i); }
     return colors[sum % colors.length];
 };
 
@@ -238,7 +239,7 @@ const renderHome = (container) => {
         return scoreB - scoreA;
     });
     
-    // Random shuffle for discovery, limit to 4
+    // Discovery: Random 4
     const discovery = [...state.articles].sort(() => 0.5 - Math.random()).slice(0, 4);
     
     const visibleArticles = displayArticles.slice(0, state.visibleCount);
@@ -316,10 +317,17 @@ const renderHome = (container) => {
                                 </a>
                             `).join('')}
                         </div>
-                        <!-- Advertisement -->
+                        <!-- Advertisement Slot 1 -->
+                        ${state.ads.ad1 ? `
                         <div class="mt-8 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">
-                            <img src="https://placehold.co/400x300?text=REKLAM+ALANI" class="w-full h-auto object-cover opacity-80 hover:opacity-100 transition-opacity">
-                        </div>
+                            <img src="${state.ads.ad1}" class="w-full h-auto object-cover opacity-90 hover:opacity-100 transition-opacity">
+                        </div>` : ''}
+                        
+                        <!-- Advertisement Slot 2 -->
+                        ${state.ads.ad2 ? `
+                        <div class="mt-4 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">
+                            <img src="${state.ads.ad2}" class="w-full h-auto object-cover opacity-90 hover:opacity-100 transition-opacity">
+                        </div>` : ''}
                     </div>
                 </div>
             </div>
@@ -379,7 +387,7 @@ const renderSearch = (container) => {
 
 
 // ==========================================
-// ADMIN PANEL: SPLIT LAYOUT (NEW)
+// ADMIN PANEL
 // ==========================================
 
 const renderAdmin = (container) => {
@@ -431,7 +439,6 @@ const renderAdminSidebarButton = (tab, label) => {
 
 window.switchAdminTab = (tab) => {
     state.activeAdminTab = tab;
-    // Cancel editing if switching away from articles
     if (tab !== 'articles') state.editingId = null; 
     const adminApp = document.getElementById('admin-app');
     renderAdmin(adminApp);
@@ -629,17 +636,64 @@ const renderMessagesView = () => `
 
 const renderSettingsView = () => `
     <h1 class="text-3xl font-serif font-bold mb-8">Ayarlar & Duyurular</h1>
-    <div class="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 max-w-2xl">
-        <h2 class="text-lg font-serif font-bold mb-4">Site Üstü Duyuru Bandı</h2>
-        <form onsubmit="handleUpdateAnnouncement(event)" class="flex flex-col gap-4">
-            <input id="announcement-text" value="${state.announcement.text || ''}" class="w-full p-4 bg-gray-50 dark:bg-gray-900 border rounded" placeholder="Duyuru metnini buraya yazın...">
-            <div class="flex gap-4">
-                <button type="button" onclick="toggleAnnouncementActive()" class="flex-1 py-3 border rounded font-bold ${state.announcement.active ? 'bg-green-100 text-green-800 border-green-200' : 'bg-gray-100 text-gray-500'}">
-                    ${state.announcement.active ? 'DURUM: AKTİF' : 'DURUM: PASİF'}
-                </button>
-                <button class="flex-1 py-3 bg-black text-white dark:bg-white dark:text-black rounded font-bold">METNİ GÜNCELLE</button>
+    <div class="space-y-8 max-w-2xl">
+        <!-- Announcement Config -->
+        <div class="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
+            <h2 class="text-lg font-serif font-bold mb-4">Site Üstü Duyuru Bandı</h2>
+            <form onsubmit="handleUpdateAnnouncement(event)" class="flex flex-col gap-4">
+                <input id="announcement-text" value="${state.announcement.text || ''}" class="w-full p-4 bg-gray-50 dark:bg-gray-900 border rounded" placeholder="Duyuru metnini buraya yazın...">
+                <div class="flex gap-4">
+                    <button type="button" onclick="toggleAnnouncementActive()" class="flex-1 py-3 border rounded font-bold ${state.announcement.active ? 'bg-green-100 text-green-800 border-green-200' : 'bg-gray-100 text-gray-500'}">
+                        ${state.announcement.active ? 'DURUM: AKTİF' : 'DURUM: PASİF'}
+                    </button>
+                    <button class="flex-1 py-3 bg-black text-white dark:bg-white dark:text-black rounded font-bold">METNİ GÜNCELLE</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Password Change -->
+        <div class="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
+            <h2 class="text-lg font-serif font-bold mb-4">Admin Şifre Değişikliği</h2>
+            <form onsubmit="handleUpdatePassword(event)" class="flex flex-col gap-4">
+                <input name="newPassword" type="text" placeholder="Yeni Şifre" class="w-full p-4 bg-gray-50 dark:bg-gray-900 border rounded outline-none" required minlength="4">
+                <button class="w-full py-3 bg-red-600 text-white rounded font-bold hover:bg-red-700 transition">ŞİFREYİ GÜNCELLE</button>
+            </form>
+        </div>
+
+        <!-- Ad Management -->
+        <div class="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
+            <h2 class="text-lg font-serif font-bold mb-4">Reklam Yönetimi</h2>
+            <div class="space-y-6">
+                <!-- AD 1 -->
+                <div class="p-4 bg-gray-50 dark:bg-gray-900 rounded border">
+                    <label class="block text-xs font-bold mb-2 uppercase text-gray-500">Reklam 1 (Üst)</label>
+                    <div class="flex gap-4 items-start mb-2">
+                        ${state.ads.ad1 ? `<img src="${state.ads.ad1}" class="w-20 h-20 object-cover rounded bg-white">` : '<div class="w-20 h-20 bg-gray-200 rounded"></div>'}
+                        <div class="flex-grow space-y-2">
+                            <input id="ad1-url" value="${state.ads.ad1}" placeholder="Görsel URL'si yapıştırın veya dosya seçin" class="w-full p-2 text-sm border rounded">
+                            <div class="flex gap-2">
+                                <input type="file" id="ad1-file" onchange="handleAdFileUpload(event, 'ad1')" class="text-xs">
+                                <button onclick="updateAdUrl('ad1')" class="px-3 py-1 bg-blue-600 text-white text-xs rounded font-bold">GÜNCELLE</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- AD 2 -->
+                <div class="p-4 bg-gray-50 dark:bg-gray-900 rounded border">
+                    <label class="block text-xs font-bold mb-2 uppercase text-gray-500">Reklam 2 (Alt)</label>
+                    <div class="flex gap-4 items-start mb-2">
+                        ${state.ads.ad2 ? `<img src="${state.ads.ad2}" class="w-20 h-20 object-cover rounded bg-white">` : '<div class="w-20 h-20 bg-gray-200 rounded"></div>'}
+                        <div class="flex-grow space-y-2">
+                            <input id="ad2-url" value="${state.ads.ad2}" placeholder="Görsel URL'si yapıştırın veya dosya seçin" class="w-full p-2 text-sm border rounded">
+                            <div class="flex gap-2">
+                                <input type="file" id="ad2-file" onchange="handleAdFileUpload(event, 'ad2')" class="text-xs">
+                                <button onclick="updateAdUrl('ad2')" class="px-3 py-1 bg-blue-600 text-white text-xs rounded font-bold">GÜNCELLE</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
-        </form>
+        </div>
     </div>
 `;
 
@@ -662,7 +716,8 @@ const renderLogin = () => `
 window.handleLogin = (e) => {
     e.preventDefault();
     const pass = document.getElementById('admin-pass').value;
-    if (pass === 'admin123') {
+    // Check against config loaded from server
+    if (pass === state.adminConfig.password) {
         state.isAuthenticated = true;
         sessionStorage.setItem('admin_auth', 'true');
         renderAdmin(document.getElementById('admin-app'));
@@ -676,7 +731,15 @@ window.handleLogout = () => {
 };
 
 window.saveChanges = async () => {
-    const exportData = { articles: state.articles, categories: state.categories, announcement: state.announcement, files: state.files, messages: state.messages };
+    const exportData = { 
+        articles: state.articles, 
+        categories: state.categories, 
+        announcement: state.announcement, 
+        files: state.files, 
+        messages: state.messages,
+        adminConfig: state.adminConfig, // Save password
+        ads: state.ads // Save ads
+    };
     try {
         const response = await fetch('/api/data', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(exportData) });
         if (response.ok) alert("Değişiklikler kaydedildi!");
@@ -684,163 +747,70 @@ window.saveChanges = async () => {
     } catch (error) { alert("Sunucu iletişim hatası."); }
 };
 
-window.handleEditArticle = (id) => {
-    state.editingId = id;
-    state.activeAdminTab = 'articles';
-    renderAdmin(document.getElementById('admin-app'));
-};
-
-window.cancelEdit = () => {
-    state.editingId = null;
-    renderAdmin(document.getElementById('admin-app'));
-};
-
-window.handleAddArticle = (e) => {
+// ... (Article Handlers same as before) ...
+window.handleEditArticle = (id) => { state.editingId = id; state.activeAdminTab = 'articles'; renderAdmin(document.getElementById('admin-app')); };
+window.cancelEdit = () => { state.editingId = null; renderAdmin(document.getElementById('admin-app')); };
+window.handleAddArticle = (e) => { /* Same as previous logic */ 
     e.preventDefault();
     const formData = new FormData(e.target);
     const selectedCategories = [];
     document.querySelectorAll('input[name="categories"]:checked').forEach((checkbox) => selectedCategories.push(checkbox.value));
-    
     if (selectedCategories.length === 0) { alert("Kategori seçiniz."); return; }
-
     let articleDateStr = new Date().toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' });
     const dateInput = formData.get('dateInput');
-    if (dateInput) {
-        const d = new Date(dateInput);
-        articleDateStr = d.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' });
-    } else if (state.editingId) {
-        const old = state.articles.find(a => a.id === state.editingId);
-        if(old) articleDateStr = old.date;
-    }
-
-    const articleData = {
-        title: formData.get('title'),
-        author: formData.get('author'),
-        categories: selectedCategories,
-        imageUrl: formData.get('imageUrl'),
-        content: formData.get('content'),
-        excerpt: formData.get('content').replace(/<[^>]*>?/gm, '').substring(0, 100) + '...',
-        date: articleDateStr,
-        views: state.editingId ? (state.articles.find(a => a.id === state.editingId)?.views || 0) : 0
-    };
-
-    if (state.editingId) {
-        const index = state.articles.findIndex(a => a.id === state.editingId);
-        if (index !== -1) {
-            state.articles[index] = { ...state.articles[index], ...articleData };
-            alert('Güncellendi. "KAYDET" butonuna basınız.');
-        }
-        state.editingId = null;
-    } else {
-        state.articles.unshift({ id: Date.now(), ...articleData });
-        alert('Eklendi. "KAYDET" butonuna basınız.');
-    }
+    if (dateInput) { const d = new Date(dateInput); articleDateStr = d.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' }); } 
+    else if (state.editingId) { const old = state.articles.find(a => a.id === state.editingId); if(old) articleDateStr = old.date; }
+    const articleData = { title: formData.get('title'), author: formData.get('author'), categories: selectedCategories, imageUrl: formData.get('imageUrl'), content: formData.get('content'), excerpt: formData.get('content').replace(/<[^>]*>?/gm, '').substring(0, 100) + '...', date: articleDateStr, views: state.editingId ? (state.articles.find(a => a.id === state.editingId)?.views || 0) : 0 };
+    if (state.editingId) { const index = state.articles.findIndex(a => a.id === state.editingId); if (index !== -1) { state.articles[index] = { ...state.articles[index], ...articleData }; alert('Güncellendi. "KAYDET" butonuna basınız.'); } state.editingId = null; } else { state.articles.unshift({ id: Date.now(), ...articleData }); alert('Eklendi. "KAYDET" butonuna basınız.'); }
     renderAdmin(document.getElementById('admin-app'));
 };
-
-window.handleDeleteArticle = (id) => {
-    if (confirm('Silinecek?')) {
-        state.articles = state.articles.filter(a => a.id !== id);
-        if(state.editingId === id) state.editingId = null;
-        renderAdmin(document.getElementById('admin-app'));
-    }
-};
-
-window.handleAddCategory = (e) => {
-    e.preventDefault();
-    const formData = new FormData(e.target);
-    const name = formData.get('catName');
-    if (name) {
-        state.categories.push({ id: Date.now(), name: name, type: formData.get('catType') });
-        renderAdmin(document.getElementById('admin-app'));
-    }
-};
-
-window.handleDeleteCategory = (id) => {
-    if (confirm('Silinecek?')) {
-        state.categories = state.categories.filter(c => c.id !== id);
-        renderAdmin(document.getElementById('admin-app'));
-    }
-};
-
-window.handleUpdateAnnouncement = (e) => {
-    e.preventDefault();
-    state.announcement.text = document.getElementById('announcement-text').value;
-    renderAdmin(document.getElementById('admin-app'));
-    alert('Güncellendi. Kaydetmeyi unutmayın.');
-};
-
-window.toggleAnnouncementActive = () => {
-    state.announcement.active = !state.announcement.active;
-    renderAdmin(document.getElementById('admin-app'));
-};
-
-window.handleFileUpload = async (e) => {
-    e.preventDefault();
-    const fileInput = document.getElementById('file-input');
-    const fileNameInput = document.getElementById('file-name');
-    if (fileInput.files && fileInput.files[0]) {
-        const formData = new FormData();
-        formData.append('file', fileInput.files[0]);
-        try {
-            const res = await fetch('/api/upload', { method: 'POST', body: formData });
-            if(res.ok) {
-                const result = await res.json();
-                state.files.push({ id: Date.now(), name: fileNameInput.value || fileInput.files[0].name, data: result.url });
-                alert('Yüklendi! Kaydedin.');
-                renderAdmin(document.getElementById('admin-app'));
-            } else alert("Hata.");
-        } catch (err) { alert("Hata."); }
-    }
-};
-
-window.handleDeleteFile = (id) => {
-    if(confirm("Silinecek?")) {
-        state.files = state.files.filter(f => f.id !== id);
-        renderAdmin(document.getElementById('admin-app'));
-    }
-};
-
+window.handleDeleteArticle = (id) => { if (confirm('Silinecek?')) { state.articles = state.articles.filter(a => a.id !== id); if(state.editingId === id) state.editingId = null; renderAdmin(document.getElementById('admin-app')); } };
+window.handleAddCategory = (e) => { e.preventDefault(); const formData = new FormData(e.target); const name = formData.get('catName'); if (name) { state.categories.push({ id: Date.now(), name: name, type: formData.get('catType') }); renderAdmin(document.getElementById('admin-app')); } };
+window.handleDeleteCategory = (id) => { if (confirm('Silinecek?')) { state.categories = state.categories.filter(c => c.id !== id); renderAdmin(document.getElementById('admin-app')); } };
+window.handleUpdateAnnouncement = (e) => { e.preventDefault(); state.announcement.text = document.getElementById('announcement-text').value; renderAdmin(document.getElementById('admin-app')); alert('Güncellendi. Kaydetmeyi unutmayın.'); };
+window.toggleAnnouncementActive = () => { state.announcement.active = !state.announcement.active; renderAdmin(document.getElementById('admin-app')); };
+window.handleFileUpload = async (e) => { e.preventDefault(); const fileInput = document.getElementById('file-input'); const fileNameInput = document.getElementById('file-name'); if (fileInput.files && fileInput.files[0]) { const formData = new FormData(); formData.append('file', fileInput.files[0]); try { const res = await fetch('/api/upload', { method: 'POST', body: formData }); if(res.ok) { const result = await res.json(); state.files.push({ id: Date.now(), name: fileNameInput.value || fileInput.files[0].name, data: result.url }); alert('Yüklendi! Kaydedin.'); renderAdmin(document.getElementById('admin-app')); } else alert("Hata."); } catch (err) { alert("Hata."); } } };
+window.handleDeleteFile = (id) => { if(confirm("Silinecek?")) { state.files = state.files.filter(f => f.id !== id); renderAdmin(document.getElementById('admin-app')); } };
 window.copyToClipboard = (text) => navigator.clipboard.writeText(text).then(() => alert("URL Kopyalandı!"));
+window.handleDeleteMessage = (id) => { if(confirm("Mesaj silinsin mi?")) { state.messages = state.messages.filter(m => m.id !== id); renderAdmin(document.getElementById('admin-app')); alert("Mesaj kaldırıldı. Değişikliği kalıcı yapmak için 'KAYDET' butonuna basın."); } };
+window.handleSendMessage = async (e) => { e.preventDefault(); const formData = new FormData(e.target); const messageData = { name: formData.get('name'), email: formData.get('email'), subject: formData.get('subject'), message: formData.get('message') }; try { const res = await fetch('/api/contact', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(messageData) }); if(res.ok) { alert("Mesajınız iletildi! Teşekkürler."); e.target.reset(); } else { alert("Bir hata oluştu."); } } catch(err) { alert("Bağlantı hatası."); } };
 
-// --- HANDLER (MESSAGES) ---
-window.handleDeleteMessage = (id) => {
-    if(confirm("Mesaj silinsin mi?")) {
-        state.messages = state.messages.filter(m => m.id !== id);
+// --- NEW HANDLERS FOR SETTINGS ---
+
+window.handleUpdatePassword = (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const newPass = formData.get('newPassword');
+    if(newPass && newPass.length >= 4) {
+        state.adminConfig.password = newPass;
+        alert("Şifre güncellendi. Lütfen 'KAYDET' butonuna basarak değişiklikleri sunucuya yazın.");
         renderAdmin(document.getElementById('admin-app'));
-        // Trigger generic save to persist deletion
-        // Alternatively, implement dedicated delete endpoint. For now, rely on manual Save or implement auto-save for messages.
-        // Let's remind user to save.
-        alert("Mesaj listeden kaldırıldı. Değişikliği kalıcı yapmak için 'KAYDET' butonuna basın.");
+    } else {
+        alert("Şifre en az 4 karakter olmalıdır.");
     }
 };
 
-// --- HANDLER (CONTACT FORM) ---
-window.handleSendMessage = async (e) => {
-    e.preventDefault();
-    const formData = new FormData(e.target);
-    const messageData = {
-        name: formData.get('name'),
-        email: formData.get('email'),
-        subject: formData.get('subject'),
-        message: formData.get('message')
-    };
-    
+window.handleAdFileUpload = async (e, adKey) => {
+    const file = e.target.files[0];
+    if(!file) return;
+    const formData = new FormData();
+    formData.append('file', file);
     try {
-        const res = await fetch('/api/contact', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(messageData)
-        });
+        const res = await fetch('/api/upload', { method: 'POST', body: formData });
         if(res.ok) {
-            alert("Mesajınız iletildi! Teşekkürler.");
-            e.target.reset();
-        } else {
-            alert("Bir hata oluştu.");
-        }
-    } catch(err) {
-        alert("Bağlantı hatası.");
-    }
+            const result = await res.json();
+            // Automatically update input and state
+            state.ads[adKey] = result.url;
+            renderAdmin(document.getElementById('admin-app'));
+        } else alert("Yükleme hatası");
+    } catch(err) { alert("Hata"); }
+};
+
+window.updateAdUrl = (adKey) => {
+    const url = document.getElementById(adKey + '-url').value;
+    state.ads[adKey] = url;
+    renderAdmin(document.getElementById('admin-app'));
+    alert("Reklam URL güncellendi. 'KAYDET' yapmayı unutmayın.");
 };
 
 // --- EVENTS ---
