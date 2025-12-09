@@ -238,7 +238,9 @@ const renderHome = (container) => {
         return scoreB - scoreA;
     });
     
-    const discovery = [...state.articles].sort(() => 0.5 - Math.random()).slice(0, 5);
+    // Random shuffle for discovery, limit to 4
+    const discovery = [...state.articles].sort(() => 0.5 - Math.random()).slice(0, 4);
+    
     const visibleArticles = displayArticles.slice(0, state.visibleCount);
     const hasMore = state.visibleCount < displayArticles.length;
 
@@ -313,6 +315,10 @@ const renderHome = (container) => {
                                     </div>
                                 </a>
                             `).join('')}
+                        </div>
+                        <!-- Advertisement -->
+                        <div class="mt-8 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">
+                            <img src="https://placehold.co/400x300?text=REKLAM+ALANI" class="w-full h-auto object-cover opacity-80 hover:opacity-100 transition-opacity">
                         </div>
                     </div>
                 </div>
