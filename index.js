@@ -1,3 +1,4 @@
+
 // --- STATE & INITIALIZATION ---
 
 let state = {
@@ -8,7 +9,8 @@ let state = {
     isAuthenticated: false,
     darkMode: false, 
     menuOpen: false,
-    editingId: null // New: To track which article is being edited
+    editingId: null,
+    visibleCount: 5 // New: pagination state
 };
 
 // --- DATA FETCHING (SHARED) ---
@@ -176,6 +178,25 @@ const renderSidebarCategories = () => {
 // PUBLIC: HOME & SEARCH
 // ==========================================
 
+const parseTurkishDate = (dateStr) => {
+    if (!dateStr) return new Date(0);
+    // Format: "12 Ekim 2023"
+    const months = {
+        'ocak': 0, 'şubat': 1, 'mart': 2, 'nisan': 3, 'mayıs': 4, 'haziran': 5,
+        'temmuz': 6, 'ağustos': 7, 'eylül': 8, 'ekim': 9, 'kasım': 10, 'aralık': 11
+    };
+    try {
+        const parts = dateStr.toLowerCase().split(' ');
+        if(parts.length === 3) {
+            const day = parseInt(parts[0]);
+            const month = months[parts[1]] || 0;
+            const year = parseInt(parts[2]);
+            return new Date(year, month, day);
+        }
+    } catch(e) { console.error("Date parse error", e); }
+    return new Date(0); // fallback
+}
+
 const renderHome = (container) => {
     const urlParams = new URLSearchParams(window.location.search);
     const categoryFilter = urlParams.get('category');
@@ -192,23 +213,42 @@ const renderHome = (container) => {
         pageTitle = `Arşiv: ${yearFilter}`;
     }
 
-    const popular = [...displayArticles].sort((a, b) => b.views - a.views);
+    // --- SMART SORTING ALGORITHM ---
+    // Score = Views / (DaysSincePublished + 1)
+    // This boosts new articles with good views, and decays old articles
+    const now = new Date();
+    displayArticles.sort((a, b) => {
+        const dateA = parseTurkishDate(a.date);
+        const dateB = parseTurkishDate(b.date);
+        
+        const daysA = Math.max(0, (now - dateA) / (1000 * 60 * 60 * 24));
+        const daysB = Math.max(0, (now - dateB) / (1000 * 60 * 60 * 24));
+        
+        const scoreA = (a.views || 0) / (daysA + 1);
+        const scoreB = (b.views || 0) / (daysB + 1);
+        
+        return scoreB - scoreA;
+    });
     
-    // Discover section
-    const topIds = popular.slice(0, 3).map(a => a.id);
-    const others = state.articles.filter(a => !topIds.includes(a.id));
-    const discovery = others.sort(() => 0.5 - Math.random()).slice(0, 5);
+    // Discover section (Random 5 from remaining)
+    // For Discovery, we exclude the top 3 sorted to ensure variety, or just random
+    const discovery = [...state.articles].sort(() => 0.5 - Math.random()).slice(0, 5);
+
+    // Pagination
+    const visibleArticles = displayArticles.slice(0, state.visibleCount);
+    const hasMore = state.visibleCount < displayArticles.length;
 
     container.innerHTML = `
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-12">
             <!-- Main Column -->
             <div class="lg:col-span-8 space-y-16">
+                 <!-- Fixed alignment: mb-8, border-b, pb-4 to match sidebar -->
                  <div class="flex items-baseline justify-between border-b border-gray-200 dark:border-gray-800 pb-4 mb-8">
                     <h2 class="text-2xl font-serif font-bold">${pageTitle}</h2>
                     ${(categoryFilter || yearFilter) ? `<a href="/" class="text-sm text-blue-500 hover:underline">Tümünü Göster</a>` : ''}
                  </div>
                 
-                ${popular.length === 0 ? '<p class="text-gray-500 italic">Bu kriterlere uygun içerik bulunamadı.</p>' : popular.map((article) => `
+                ${visibleArticles.length === 0 ? '<p class="text-gray-500 italic">Bu kriterlere uygun içerik bulunamadı.</p>' : visibleArticles.map((article) => `
                     <article class="group cursor-pointer grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
                         <div class="md:col-span-5 order-2 md:order-1 overflow-hidden rounded-md">
                             <a href="/articles/${article.id}.html">
@@ -229,19 +269,30 @@ const renderHome = (container) => {
                             <p class="text-gray-600 dark:text-gray-400 leading-relaxed mb-4 line-clamp-2 text-sm md:text-base">
                                 ${article.excerpt}
                             </p>
-                            <div class="text-xs text-gray-400 font-medium">
-                                ${article.author} &bull; ${article.date}
+                            <div class="text-xs text-gray-400 font-medium flex gap-2">
+                                <span>${article.author} &bull; ${article.date}</span>
+                                <span class="text-gray-300 dark:text-gray-600">|</span>
+                                <span>${article.views || 0} görüntülenme</span>
                             </div>
                         </div>
                     </article>
                 `).join('')}
+
+                ${hasMore ? `
+                    <div class="text-center pt-8">
+                        <button onclick="handleLoadMore()" class="px-8 py-3 border border-gray-300 dark:border-gray-600 rounded-full font-bold text-sm hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black transition-colors uppercase tracking-widest">
+                            Daha Fazla Göster
+                        </button>
+                    </div>
+                ` : ''}
             </div>
 
             <!-- Side Column: Discover -->
             <div class="lg:col-span-4 pl-0 lg:pl-12 lg:border-l border-gray-100 dark:border-gray-800">
                 <div class="sticky top-24 space-y-12">
                     <div>
-                        <h2 class="text-lg font-serif font-bold mb-6 border-b border-gray-200 dark:border-gray-800 pb-2">
+                        <!-- Fixed alignment: mb-6, border-b, pb-4 (Increased pb-2 to pb-4 to match main col) -->
+                        <h2 class="text-lg font-serif font-bold mb-8 border-b border-gray-200 dark:border-gray-800 pb-4">
                             Yeni Şeyler Keşfet
                         </h2>
                         <div class="space-y-8">
@@ -268,6 +319,12 @@ const renderHome = (container) => {
             </div>
         </div>
     `;
+};
+
+window.handleLoadMore = () => {
+    state.visibleCount += 3;
+    const publicApp = document.getElementById('app');
+    renderHome(publicApp);
 };
 
 const renderSearch = (container) => {
@@ -359,11 +416,7 @@ const renderDashboard = () => {
     if (state.editingId) {
         editArticle = state.articles.find(a => a.id === state.editingId);
         if (editArticle) {
-            // Convert "12 Ekim 2023" like strings back to YYYY-MM-DD isn't easy without a library.
-            // For simplicity, if editing, we might reset date or keep existing string in a hidden field?
-            // BETTER: Let's assume user picks a new date or we try to parse. 
-            // Since we stored date as a localized string, we can't easily put it into <input type="date">.
-            // We will just let the user pick a new date if they want to change it.
+            // Date handling logic here if needed
         }
     }
 

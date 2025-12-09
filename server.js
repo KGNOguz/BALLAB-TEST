@@ -1,3 +1,4 @@
+
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
@@ -73,7 +74,34 @@ app.post('/api/data', (req, res) => {
     });
 });
 
-// 3. Upload File
+// 3. Increment View Count
+app.post('/api/view/:id', (req, res) => {
+    const articleId = parseInt(req.params.id);
+    
+    fs.readFile(DATA_FILE, 'utf8', (err, data) => {
+        if (err) return res.status(500).json({error: 'Read error'});
+        try {
+            const jsonData = JSON.parse(data);
+            const article = jsonData.articles.find(a => a.id === articleId);
+            
+            if(article) {
+                article.views = (article.views || 0) + 1;
+                
+                fs.writeFile(DATA_FILE, JSON.stringify(jsonData, null, 2), (wErr) => {
+                    if(wErr) return res.status(500).json({error: 'Write error'});
+                    res.json({success: true, views: article.views});
+                });
+            } else {
+                res.status(404).json({error: 'Not found'});
+            }
+        } catch(e) {
+            res.status(500).json({error: 'Parse error'});
+        }
+    });
+});
+
+
+// 4. Upload File
 const storage = multer.diskStorage({
     destination: function (req, file, cb) {
         cb(null, RESOURCES_DIR)
@@ -153,13 +181,13 @@ const generateArticleHTML = (article) => {
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between items-center h-20">
                 <div class="flex items-center">
-                     <button id="menu-btn" class="flex items-center gap-2 p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors group">
+                     <button id="menu-btn" class="flex items-center gap-2 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors group">
                         <svg class="group-hover:text-blue-600 transition-colors" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
                         <span class="hidden md:inline text-sm font-medium text-gray-500 group-hover:text-blue-600">Menü</span>
                     </button>
                 </div>
                 <a href="/" class="text-3xl font-serif font-black tracking-tighter cursor-pointer select-none absolute left-1/2 transform -translate-x-1/2 flex items-center h-full pb-1">
-                    DERGİ.
+                    BALLAB
                 </a>
                 <div class="flex items-center gap-4">
                      <!-- Search Box -->
@@ -240,14 +268,21 @@ const generateArticleHTML = (article) => {
     <footer class="border-t border-gray-100 dark:border-gray-800 py-16 mt-auto bg-white dark:bg-gray-900">
         <div class="max-w-7xl mx-auto px-4 flex flex-col md:flex-row justify-between items-center gap-8">
             <div class="text-center md:text-left">
-                <div class="font-serif text-3xl font-black mb-2 tracking-tight">DERGİ.</div>
+                <div class="font-serif text-3xl font-black mb-2 tracking-tight">BALLAB</div>
                 <p class="text-gray-400 text-sm">© 2025 BALLAB. Tüm hakları saklıdır.</p>
+            </div>
+            <div class="text-center md:text-right">
+                <div class="font-serif text-3xl font-black mb-2 tracking-tight">by CORENSAN</div>
             </div>
         </div>
     </footer>
 
-    <!-- Script: Point to root index.js -->
+    <!-- Script: Point to root index.js and View Counter -->
     <script src="/index.js"></script>
+    <script>
+        // Increment view count on load
+        fetch('/api/view/${article.id}', { method: 'POST' }).catch(e => console.error(e));
+    </script>
 </body>
 </html>
     `;
