@@ -91,28 +91,65 @@
 
     <!-- Contact Content -->
     <main class="flex-grow w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div class="max-w-2xl mx-auto py-12 text-center">
-            <h1 class="text-4xl font-serif font-bold mb-8">İletişim</h1>
-            <div class="w-12 h-1 bg-black dark:bg-white mx-auto mb-8"></div>
-            <p class="text-lg text-gray-600 dark:text-gray-300 leading-relaxed font-serif mb-12">
-                BALLAB Bilim Dergisi Ailesine Katılmak veya Destek Vermek İçin Bize Ulaşabilirsiniz<br>
-                <span class="font-bold">0224 234 76 81</span>
-            </p>
-            
-            <div class="bg-gray-100 dark:bg-gray-800 p-2 rounded-xl">
-                 <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3048.067341870233!2d29.02742931538965!3d40.18530497939266!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x14ca3de7c7c3093d%3A0x577609205562725e!2sBursa%20Anadolu%20Lisesi!5e0!3m2!1str!2str!4v1709220000000!5m2!1str!2str" 
-                 width="100%" height="450" style="border:0; border-radius: 8px;" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+        <h1 class="text-4xl font-serif font-bold mb-12 text-center">İletişim</h1>
+        
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-12">
+            <!-- Left: Info & Map -->
+            <div class="space-y-8">
+                <div>
+                    <h2 class="text-xl font-bold mb-4 font-serif">Bize Ulaşın</h2>
+                    <p class="text-gray-600 dark:text-gray-300 leading-relaxed">
+                        BALLAB Bilim Dergisi Ailesine Katılmak, projelerinizi paylaşmak veya destek vermek için formu doldurabilir ya da aşağıdaki bilgilerden bize ulaşabilirsiniz.
+                    </p>
+                    <div class="mt-6 space-y-2">
+                        <p><span class="font-bold">Telefon:</span> 0224 234 76 81</p>
+                        <p><span class="font-bold">Adres:</span> Dikkaldırım Mah. Zübeyde Hanım Cad. Bursa Anadolu Lisesi Blok No 37 Osmangazi / Bursa</p>
+                    </div>
+                </div>
+                
+                <div class="bg-gray-100 dark:bg-gray-800 p-2 rounded-xl h-[400px]">
+                     <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3048.067341870233!2d29.02742931538965!3d40.18530497939266!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x14ca3de7c7c3093d%3A0x577609205562725e!2sBursa%20Anadolu%20Lisesi!5e0!3m2!1str!2str!4v1709220000000!5m2!1str!2str" 
+                     width="100%" height="100%" style="border:0; border-radius: 8px;" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+                </div>
             </div>
-            <p class="mt-8 text-sm text-gray-500">DİKKALDIRIM MAH. ZÜBEYDE HANIM CAD. BURSA ANADOLU LİSESİ BLOK NO 37 OSMANGAZİ / BURSA</p>
+
+            <!-- Right: Form -->
+            <div class="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
+                <h2 class="text-xl font-bold mb-6 font-serif">Mesaj Gönderin</h2>
+                <form onsubmit="handleSendMessage(event)" class="space-y-6">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1 uppercase">Adınız Soyadınız</label>
+                        <input name="name" required class="w-full p-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded outline-none focus:border-blue-500 transition">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1 uppercase">E-Posta Adresiniz</label>
+                        <input name="email" type="email" required class="w-full p-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded outline-none focus:border-blue-500 transition">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1 uppercase">Konu</label>
+                        <input name="subject" required class="w-full p-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded outline-none focus:border-blue-500 transition">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1 uppercase">Mesajınız</label>
+                        <textarea name="message" required rows="5" class="w-full p-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded outline-none focus:border-blue-500 transition"></textarea>
+                    </div>
+                    <button class="w-full py-4 bg-black text-white dark:bg-white dark:text-black font-bold uppercase tracking-widest rounded hover:opacity-90 transition transform active:scale-95">GÖNDER</button>
+                </form>
+            </div>
         </div>
     </main>
 
     <!-- Footer -->
     <footer class="border-t border-gray-100 dark:border-gray-800 py-16 mt-auto bg-white dark:bg-gray-900">
         <div class="max-w-7xl mx-auto px-4 flex flex-col md:flex-row justify-between items-center gap-8">
-            <div class="text-center md:text-left">
-                <div class="font-serif text-3xl font-black mb-2 tracking-tight">BALLAB</div>
-                <p class="text-gray-400 text-sm">© 2025 BALLAB. Tüm hakları saklıdır.</p>
+            <div class="text-center md:text-left flex items-center gap-4 justify-center md:justify-start">
+                <div>
+                    <div class="font-serif text-3xl font-black mb-1 tracking-tight">BALLAB</div>
+                    <p class="text-gray-400 text-sm">© 2025 BALLAB. Tüm hakları saklıdır.</p>
+                </div>
+                 <a href="https://instagram.com" target="_blank" class="text-gray-400 hover:text-pink-600 transition-colors p-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg>
+                </a>
             </div>
             <div class="text-center md:text-right">
                 <div class="font-serif text-3xl font-black mb-2 tracking-tight">by CORENSAN</div>

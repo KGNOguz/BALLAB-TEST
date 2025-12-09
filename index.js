@@ -6,25 +6,24 @@ let state = {
     categories: [],
     announcement: { text: '', active: false },
     files: [], 
+    messages: [], // New: Contact messages
     isAuthenticated: false,
     darkMode: false, 
     menuOpen: false,
     editingId: null,
-    visibleCount: 5 // New: pagination state
+    visibleCount: 5,
+    activeAdminTab: 'dashboard' // New: For Admin Tab switching
 };
 
 // --- DATA FETCHING (SHARED) ---
 const initApp = async () => {
-    // 1. Theme Logic (System Sync if no preference)
     const storedTheme = localStorage.getItem('mimos_theme');
     if (storedTheme) {
         state.darkMode = storedTheme === 'dark';
     } else {
-        // Check system preference
         state.darkMode = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
     }
     
-    // Apply theme immediately
     if (state.darkMode) document.documentElement.classList.add('dark');
     else document.documentElement.classList.remove('dark');
 
@@ -38,8 +37,8 @@ const initApp = async () => {
         state.categories = data.categories || [];
         state.announcement = data.announcement || { text: '', active: false };
         state.files = data.files || [];
+        state.messages = data.messages || []; // Load messages
         
-        // --- ROUTING / VIEW LOGIC ---
         const adminApp = document.getElementById('admin-app');
         const publicApp = document.getElementById('app'); 
         const searchApp = document.getElementById('search-results'); 
@@ -67,13 +66,34 @@ const initApp = async () => {
                     <p class="text-sm text-red-600">Veriler yüklenemedi. Lütfen sayfayı yenileyin.</p>
                 </div>
             </div>`;
-        
         const adminApp = document.getElementById('admin-app');
         if(adminApp) adminApp.innerHTML = errorHTML;
-        
         const publicApp = document.getElementById('app');
         if(publicApp) publicApp.innerHTML = errorHTML;
     }
+};
+
+// --- PASTEL COLOR GENERATOR ---
+window.getCategoryStyle = (name) => {
+    const colors = [
+        'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
+        'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300',
+        'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300',
+        'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
+        'bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-300',
+        'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
+        'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300',
+        'bg-violet-100 text-violet-800 dark:bg-violet-900/30 dark:text-violet-300',
+        'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300',
+        'bg-pink-100 text-pink-800 dark:bg-pink-900/30 dark:text-pink-300',
+        'bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-300'
+    ];
+    
+    let sum = 0;
+    for (let i = 0; i < name.length; i++) {
+        sum += name.charCodeAt(i);
+    }
+    return colors[sum % colors.length];
 };
 
 // --- SHARED UTILS ---
@@ -107,7 +127,6 @@ window.handleSearch = (e) => {
     e.preventDefault();
     const formData = new FormData(e.target);
     const query = formData.get('q');
-    
     if(!query || query.length < 3) {
         alert("Arama yapmak için en az 3 karakter girmelisiniz.");
         return;
@@ -118,7 +137,6 @@ window.handleSearch = (e) => {
 const renderAnnouncement = () => {
     const container = document.getElementById('announcement-container');
     if (!container) return;
-    
     if (!state.announcement.active || !state.announcement.text) {
         container.innerHTML = '';
         return;
@@ -127,9 +145,7 @@ const renderAnnouncement = () => {
         <div class="bg-paper dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3 relative transition-colors duration-300">
             <div class="max-w-7xl mx-auto flex items-center justify-center gap-3">
                 <span class="inline-block w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
-                <span class="text-sm font-serif italic text-gray-800 dark:text-gray-200">
-                    ${state.announcement.text}
-                </span>
+                <span class="text-sm font-serif italic text-gray-800 dark:text-gray-200">${state.announcement.text}</span>
             </div>
             <button onclick="closeAnnouncement()" class="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-800 dark:hover:text-gray-200">×</button>
         </div>
@@ -177,10 +193,8 @@ const renderSidebarCategories = () => {
 // ==========================================
 // PUBLIC: HOME & SEARCH
 // ==========================================
-
 const parseTurkishDate = (dateStr) => {
     if (!dateStr) return new Date(0);
-    // Format: "12 Ekim 2023"
     const months = {
         'ocak': 0, 'şubat': 1, 'mart': 2, 'nisan': 3, 'mayıs': 4, 'haziran': 5,
         'temmuz': 6, 'ağustos': 7, 'eylül': 8, 'ekim': 9, 'kasım': 10, 'aralık': 11
@@ -193,8 +207,8 @@ const parseTurkishDate = (dateStr) => {
             const year = parseInt(parts[2]);
             return new Date(year, month, day);
         }
-    } catch(e) { console.error("Date parse error", e); }
-    return new Date(0); // fallback
+    } catch(e) { }
+    return new Date(0);
 }
 
 const renderHome = (container) => {
@@ -213,36 +227,24 @@ const renderHome = (container) => {
         pageTitle = `Arşiv: ${yearFilter}`;
     }
 
-    // --- SMART SORTING ALGORITHM ---
-    // Score = Views / (DaysSincePublished + 1)
-    // This boosts new articles with good views, and decays old articles
     const now = new Date();
     displayArticles.sort((a, b) => {
         const dateA = parseTurkishDate(a.date);
         const dateB = parseTurkishDate(b.date);
-        
         const daysA = Math.max(0, (now - dateA) / (1000 * 60 * 60 * 24));
         const daysB = Math.max(0, (now - dateB) / (1000 * 60 * 60 * 24));
-        
         const scoreA = (a.views || 0) / (daysA + 1);
         const scoreB = (b.views || 0) / (daysB + 1);
-        
         return scoreB - scoreA;
     });
     
-    // Discover section (Random 5 from remaining)
-    // For Discovery, we exclude the top 3 sorted to ensure variety, or just random
     const discovery = [...state.articles].sort(() => 0.5 - Math.random()).slice(0, 5);
-
-    // Pagination
     const visibleArticles = displayArticles.slice(0, state.visibleCount);
     const hasMore = state.visibleCount < displayArticles.length;
 
     container.innerHTML = `
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-12">
-            <!-- Main Column -->
             <div class="lg:col-span-8 space-y-16">
-                 <!-- Fixed alignment: mb-8, border-b, pb-4 to match sidebar -->
                  <div class="flex items-baseline justify-between border-b border-gray-200 dark:border-gray-800 pb-4 mb-8">
                     <h2 class="text-2xl font-serif font-bold">${pageTitle}</h2>
                     ${(categoryFilter || yearFilter) ? `<a href="/" class="text-sm text-blue-500 hover:underline">Tümünü Göster</a>` : ''}
@@ -258,7 +260,7 @@ const renderHome = (container) => {
                         <div class="md:col-span-7 order-1 md:order-2 flex flex-col h-full justify-center">
                             <div class="flex flex-wrap items-center gap-2 mb-3">
                                 ${article.categories.map(cat => `
-                                    <span class="text-[10px] font-bold tracking-widest text-blue-600 dark:text-blue-400 uppercase bg-blue-50 dark:bg-blue-900/20 px-2 py-0.5 rounded">${cat}</span>
+                                    <span class="text-[10px] font-bold tracking-widest uppercase px-2 py-0.5 rounded ${window.getCategoryStyle(cat)}">${cat}</span>
                                 `).join('')}
                             </div>
                             <a href="/articles/${article.id}.html" class="block">
@@ -287,11 +289,9 @@ const renderHome = (container) => {
                 ` : ''}
             </div>
 
-            <!-- Side Column: Discover -->
             <div class="lg:col-span-4 pl-0 lg:pl-12 lg:border-l border-gray-100 dark:border-gray-800">
                 <div class="sticky top-24 space-y-12">
                     <div>
-                        <!-- Fixed alignment: mb-6, border-b, pb-4 (Increased pb-2 to pb-4 to match main col) -->
                         <h2 class="text-lg font-serif font-bold mb-8 border-b border-gray-200 dark:border-gray-800 pb-4">
                             Yeni Şeyler Keşfet
                         </h2>
@@ -330,12 +330,10 @@ window.handleLoadMore = () => {
 const renderSearch = (container) => {
     const urlParams = new URLSearchParams(window.location.search);
     const query = urlParams.get('q') || '';
-    
     if(!query) {
         container.innerHTML = '<p class="text-center py-12">Arama terimi bulunamadı.</p>';
         return;
     }
-
     const lowerQuery = query.toLowerCase();
     const results = state.articles.filter(a => 
         (a.title && a.title.toLowerCase().includes(lowerQuery)) || 
@@ -343,14 +341,10 @@ const renderSearch = (container) => {
         (a.author && a.author.toLowerCase().includes(lowerQuery)) ||
         (a.categories && a.categories.some(c => c.toLowerCase().includes(lowerQuery)))
     );
-
     container.innerHTML = `
         <div class="max-w-4xl mx-auto py-8">
             <h1 class="text-3xl font-serif font-bold mb-2">Arama Sonuçları</h1>
-            <p class="text-gray-500 mb-12 border-b border-gray-200 dark:border-gray-700 pb-4">
-                "${query}" araması için ${results.length} sonuç bulundu.
-            </p>
-
+            <p class="text-gray-500 mb-12 border-b border-gray-200 dark:border-gray-700 pb-4">"${query}" araması için ${results.length} sonuç bulundu.</p>
             <div class="space-y-12">
                 ${results.length === 0 ? '<p class="text-gray-500 italic">Sonuç bulunamadı.</p>' : results.map((article) => `
                     <article class="group cursor-pointer grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
@@ -362,17 +356,13 @@ const renderSearch = (container) => {
                         <div class="md:col-span-8 order-1 md:order-2 flex flex-col h-full justify-center">
                             <div class="flex flex-wrap items-center gap-2 mb-2">
                                 ${article.categories.map(cat => `
-                                    <span class="text-[9px] font-bold tracking-widest text-blue-600 dark:text-blue-400 uppercase bg-blue-50 dark:bg-blue-900/20 px-2 py-0.5 rounded">${cat}</span>
+                                    <span class="text-[9px] font-bold tracking-widest uppercase px-2 py-0.5 rounded ${window.getCategoryStyle(cat)}">${cat}</span>
                                 `).join('')}
                             </div>
                             <a href="/articles/${article.id}.html" class="block">
-                                <h3 class="text-xl md:text-2xl font-serif font-bold mb-2 leading-tight group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors">
-                                    ${article.title}
-                                </h3>
+                                <h3 class="text-xl md:text-2xl font-serif font-bold mb-2 leading-tight group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors">${article.title}</h3>
                             </a>
-                            <p class="text-gray-600 dark:text-gray-400 leading-relaxed mb-2 line-clamp-2 text-sm">
-                                ${article.excerpt}
-                            </p>
+                            <p class="text-gray-600 dark:text-gray-400 leading-relaxed mb-2 line-clamp-2 text-sm">${article.excerpt}</p>
                         </div>
                     </article>
                 `).join('')}
@@ -383,16 +373,269 @@ const renderSearch = (container) => {
 
 
 // ==========================================
-// ADMIN PANEL LOGIC (MERGED & REDESIGNED)
+// ADMIN PANEL: SPLIT LAYOUT (NEW)
 // ==========================================
 
 const renderAdmin = (container) => {
-    if(state.isAuthenticated) {
-        container.innerHTML = renderDashboard();
-    } else {
+    if(!state.isAuthenticated) {
         container.innerHTML = renderLogin();
+        return;
+    }
+
+    container.innerHTML = `
+        <div class="flex h-screen overflow-hidden bg-gray-100 dark:bg-gray-900">
+            <!-- Sidebar -->
+            <aside class="w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col z-20">
+                <div class="p-6 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+                    <span class="text-2xl font-serif font-black">Admin</span>
+                </div>
+                <nav class="flex-grow p-4 space-y-2 overflow-y-auto">
+                    ${renderAdminSidebarButton('dashboard', 'Dashboard')}
+                    ${renderAdminSidebarButton('articles', 'Makaleler')}
+                    ${renderAdminSidebarButton('categories', 'Kategoriler')}
+                    ${renderAdminSidebarButton('files', 'Dosyalar')}
+                    ${renderAdminSidebarButton('messages', 'Mesaj Kutusu')}
+                    ${renderAdminSidebarButton('settings', 'Ayarlar')}
+                </nav>
+                <div class="p-4 border-t border-gray-200 dark:border-gray-700">
+                    <button onclick="saveChanges()" class="w-full mb-2 px-4 py-2 bg-black text-white dark:bg-white dark:text-black rounded font-bold text-sm">KAYDET</button>
+                    <button onclick="handleLogout()" class="w-full px-4 py-2 border border-red-200 text-red-500 rounded text-sm hover:bg-red-50">Çıkış</button>
+                </div>
+            </aside>
+
+            <!-- Main Content -->
+            <main class="flex-1 overflow-auto p-8 relative">
+                <div class="max-w-5xl mx-auto">
+                    ${renderAdminContent()}
+                </div>
+            </main>
+        </div>
+    `;
+};
+
+const renderAdminSidebarButton = (tab, label) => {
+    const isActive = state.activeAdminTab === tab;
+    return `
+        <button onclick="switchAdminTab('${tab}')" 
+            class="w-full text-left px-4 py-3 rounded transition-colors ${isActive ? 'bg-gray-100 dark:bg-gray-700 font-bold border-l-4 border-blue-500' : 'hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400'}">
+            ${label}
+        </button>
+    `;
+};
+
+window.switchAdminTab = (tab) => {
+    state.activeAdminTab = tab;
+    // Cancel editing if switching away from articles
+    if (tab !== 'articles') state.editingId = null; 
+    const adminApp = document.getElementById('admin-app');
+    renderAdmin(adminApp);
+};
+
+const renderAdminContent = () => {
+    switch(state.activeAdminTab) {
+        case 'dashboard': return renderDashboardView();
+        case 'articles': return renderArticlesView();
+        case 'categories': return renderCategoriesView();
+        case 'files': return renderFilesView();
+        case 'messages': return renderMessagesView();
+        case 'settings': return renderSettingsView();
+        default: return renderDashboardView();
     }
 };
+
+const renderDashboardView = () => `
+    <h1 class="text-3xl font-serif font-bold mb-8">Genel Bakış</h1>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700">
+            <h3 class="text-gray-500 text-sm font-bold uppercase mb-2">Toplam Makale</h3>
+            <p class="text-4xl font-black">${state.articles.length}</p>
+        </div>
+        <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700">
+            <h3 class="text-gray-500 text-sm font-bold uppercase mb-2">Toplam Okunma</h3>
+            <p class="text-4xl font-black">${state.articles.reduce((acc, curr) => acc + (curr.views || 0), 0)}</p>
+        </div>
+        <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700">
+            <h3 class="text-gray-500 text-sm font-bold uppercase mb-2">Dosyalar</h3>
+            <p class="text-4xl font-black">${state.files.length}</p>
+        </div>
+        <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700">
+            <h3 class="text-gray-500 text-sm font-bold uppercase mb-2">Mesajlar</h3>
+            <p class="text-4xl font-black">${state.messages.length}</p>
+        </div>
+    </div>
+    <div class="mt-8 p-6 bg-blue-50 dark:bg-blue-900/20 rounded border border-blue-100 dark:border-blue-900 text-blue-800 dark:text-blue-200">
+        <p class="font-bold">Unutmayın!</p>
+        <p class="text-sm mt-1">Yapılan tüm değişikliklerin canlıya alınması için sol menüden <span class="font-bold">KAYDET</span> butonuna basmanız gerekmektedir.</p>
+    </div>
+`;
+
+const renderArticlesView = () => {
+    let editArticle = null;
+    if (state.editingId) editArticle = state.articles.find(a => a.id === state.editingId);
+
+    return `
+    <h1 class="text-3xl font-serif font-bold mb-8">Makale Yönetimi</h1>
+    <div class="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 mb-12 relative">
+        ${state.editingId ? `<div class="absolute top-4 right-4 bg-blue-100 text-blue-800 text-xs font-bold px-2 py-1 rounded">DÜZENLEME MODU</div>` : ''}
+        <h2 class="text-xl font-bold mb-6">${state.editingId ? 'Makaleyi Düzenle' : 'Yeni Makale Oluştur'}</h2>
+        
+        <form onsubmit="handleAddArticle(event)" class="space-y-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <input name="title" required placeholder="Başlık" value="${editArticle ? editArticle.title : ''}" class="w-full p-3 bg-gray-50 dark:bg-gray-900 border rounded">
+                <input name="author" required placeholder="Yazar" value="${editArticle ? editArticle.author : ''}" class="w-full p-3 bg-gray-50 dark:bg-gray-900 border rounded">
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <input type="date" name="dateInput" class="w-full p-3 bg-gray-50 dark:bg-gray-900 border rounded text-gray-500">
+                    <input name="imageUrl" placeholder="Kapak Görseli URL" value="${editArticle ? editArticle.imageUrl : ''}" class="w-full p-3 bg-gray-50 dark:bg-gray-900 border rounded">
+            </div>
+            <div>
+                <label class="block text-sm font-bold mb-2 text-gray-500">Kategoriler</label>
+                <div class="flex flex-wrap gap-4 p-4 border rounded bg-gray-50 dark:bg-gray-900">
+                    ${state.categories.map(c => `
+                        <label class="flex items-center space-x-2 cursor-pointer">
+                            <input type="checkbox" name="categories" value="${c.name}" class="rounded w-4 h-4" 
+                                ${(editArticle && editArticle.categories.includes(c.name)) ? 'checked' : ''}>
+                            <span class="text-sm">${c.name}</span>
+                        </label>
+                    `).join('')}
+                </div>
+            </div>
+            <textarea name="content" required rows="10" placeholder="İçerik (HTML)" class="w-full p-4 bg-gray-50 dark:bg-gray-900 border rounded font-mono text-sm">${editArticle ? editArticle.content : ''}</textarea>
+            
+            <div class="flex gap-4">
+                <button class="flex-1 bg-black text-white dark:bg-white dark:text-black py-4 rounded font-bold uppercase hover:opacity-90">
+                    ${state.editingId ? 'GÜNCELLE' : 'LİSTEYE EKLE'}
+                </button>
+                ${state.editingId ? `<button type="button" onclick="cancelEdit()" class="px-6 border border-gray-300 rounded hover:bg-gray-100 dark:hover:bg-gray-700">Vazgeç</button>` : ''}
+            </div>
+        </form>
+    </div>
+
+    <div class="space-y-4">
+        ${state.articles.map(article => `
+            <div class="flex items-center justify-between p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-700 hover:shadow-md transition">
+                <div>
+                    <h3 class="font-bold text-lg">${article.title}</h3>
+                    <div class="text-xs text-gray-500 mt-1">${article.date} • ${article.author} • ${article.views || 0} Görüntülenme</div>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="handleEditArticle(${article.id})" class="text-xs bg-blue-100 text-blue-600 px-3 py-2 rounded font-bold hover:bg-blue-200">Düzenle</button>
+                    <button onclick="handleDeleteArticle(${article.id})" class="text-xs bg-red-100 text-red-600 px-3 py-2 rounded font-bold hover:bg-red-200">Sil</button>
+                </div>
+            </div>
+        `).join('')}
+    </div>
+    `;
+};
+
+const renderCategoriesView = () => `
+    <h1 class="text-3xl font-serif font-bold mb-8">Kategori Yönetimi</h1>
+    <div class="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 mb-8">
+        <form onsubmit="handleAddCategory(event)" class="flex gap-4 items-end">
+            <div class="flex-grow">
+                 <label class="block text-xs font-bold text-gray-500 mb-1">Kategori Adı</label>
+                 <input name="catName" required class="w-full p-2 bg-gray-50 dark:bg-gray-900 border rounded">
+            </div>
+            <div class="w-1/3">
+                 <label class="block text-xs font-bold text-gray-500 mb-1">Tip</label>
+                 <select name="catType" class="w-full p-2 bg-gray-50 dark:bg-gray-900 border rounded">
+                    <option value="main">Ana Kategori</option>
+                    <option value="sub">Alt Kategori</option>
+                    <option value="year">Yıl</option>
+                </select>
+            </div>
+            <button class="px-6 py-2 bg-blue-600 text-white rounded font-bold h-10">EKLE</button>
+        </form>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        ${state.categories.map(c => `
+            <div class="flex items-center justify-between p-4 bg-white dark:bg-gray-800 rounded border border-gray-100 dark:border-gray-700">
+                <div>
+                    <span class="font-bold block">${c.name}</span>
+                    <span class="text-xs text-gray-400 uppercase">${c.type === 'main' ? 'Ana Kategori' : c.type}</span>
+                </div>
+                <button onclick="handleDeleteCategory(${c.id})" class="text-red-400 font-bold px-2 py-1 hover:bg-red-50 rounded">SİL</button>
+            </div>
+        `).join('')}
+    </div>
+`;
+
+const renderFilesView = () => `
+    <h1 class="text-3xl font-serif font-bold mb-8">Dosya Yönetimi</h1>
+    <div class="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 mb-8">
+         <form onsubmit="handleFileUpload(event)" class="flex gap-4 items-end">
+            <div class="flex-grow">
+                <label class="block text-xs font-bold text-gray-500 mb-1">Dosya Adı (Opsiyonel)</label>
+                <input type="text" id="file-name" class="w-full p-2 text-sm border rounded bg-white dark:bg-gray-900">
+            </div>
+            <div class="flex-grow">
+                <label class="block text-xs font-bold text-gray-500 mb-1">Dosya Seç</label>
+                <input type="file" id="file-input" accept="image/*" class="w-full text-xs">
+            </div>
+            <button class="px-6 py-2 bg-blue-600 text-white rounded text-sm font-bold h-10">YÜKLE</button>
+        </form>
+    </div>
+    <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">
+        ${state.files.map(f => `
+            <div class="p-3 bg-white dark:bg-gray-800 rounded border border-gray-100 dark:border-gray-700 group relative">
+                <div class="aspect-square bg-gray-100 mb-2 rounded overflow-hidden">
+                    <img src="${f.data}" class="w-full h-full object-cover">
+                </div>
+                <div class="text-xs font-bold truncate mb-2">${f.name}</div>
+                <div class="flex flex-col gap-1">
+                    <button onclick="copyToClipboard('${f.data}')" class="w-full py-1 bg-gray-100 dark:bg-gray-700 text-[10px] font-bold rounded hover:bg-gray-200">URL KOPYALA</button>
+                    <button onclick="handleDeleteFile(${f.id})" class="w-full py-1 bg-red-50 text-red-600 text-[10px] font-bold rounded hover:bg-red-100">SİL</button>
+                </div>
+            </div>
+        `).join('')}
+    </div>
+`;
+
+const renderMessagesView = () => `
+    <h1 class="text-3xl font-serif font-bold mb-8">Mesaj Kutusu</h1>
+    <div class="space-y-4">
+        ${state.messages.length === 0 ? '<p class="text-gray-500">Henüz mesaj yok.</p>' : state.messages.map(m => `
+            <details class="bg-white dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-700 group">
+                <summary class="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition list-none">
+                    <div class="flex items-center gap-4">
+                        <div class="w-2 h-2 rounded-full bg-blue-500"></div>
+                        <div>
+                            <div class="font-bold text-lg">${m.subject || 'Konusuz'}</div>
+                            <div class="text-xs text-gray-500">${m.name} &bull; ${m.date}</div>
+                        </div>
+                    </div>
+                    <svg class="w-5 h-5 text-gray-400 group-open:rotate-180 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+                </summary>
+                <div class="p-6 border-t border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50">
+                    <div class="mb-4 text-sm">
+                        <span class="font-bold text-gray-500 block text-xs uppercase mb-1">Gönderen</span>
+                        ${m.name} <a href="mailto:${m.email}" class="text-blue-500 hover:underline">&lt;${m.email}&gt;</a>
+                    </div>
+                    <div class="text-gray-800 dark:text-gray-200 leading-relaxed whitespace-pre-wrap">${m.message}</div>
+                    <div class="mt-6 flex justify-end">
+                        <button onclick="handleDeleteMessage(${m.id})" class="text-xs text-red-500 hover:bg-red-50 px-3 py-2 rounded">Mesajı Sil</button>
+                    </div>
+                </div>
+            </details>
+        `).join('')}
+    </div>
+`;
+
+const renderSettingsView = () => `
+    <h1 class="text-3xl font-serif font-bold mb-8">Ayarlar & Duyurular</h1>
+    <div class="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 max-w-2xl">
+        <h2 class="text-lg font-serif font-bold mb-4">Site Üstü Duyuru Bandı</h2>
+        <form onsubmit="handleUpdateAnnouncement(event)" class="flex flex-col gap-4">
+            <input id="announcement-text" value="${state.announcement.text || ''}" class="w-full p-4 bg-gray-50 dark:bg-gray-900 border rounded" placeholder="Duyuru metnini buraya yazın...">
+            <div class="flex gap-4">
+                <button type="button" onclick="toggleAnnouncementActive()" class="flex-1 py-3 border rounded font-bold ${state.announcement.active ? 'bg-green-100 text-green-800 border-green-200' : 'bg-gray-100 text-gray-500'}">
+                    ${state.announcement.active ? 'DURUM: AKTİF' : 'DURUM: PASİF'}
+                </button>
+                <button class="flex-1 py-3 bg-black text-white dark:bg-white dark:text-black rounded font-bold">METNİ GÜNCELLE</button>
+            </div>
+        </form>
+    </div>
+`;
 
 const renderLogin = () => `
     <div class="flex items-center justify-center min-h-[80vh] bg-paper dark:bg-gray-900">
@@ -408,170 +651,7 @@ const renderLogin = () => `
     </div>
 `;
 
-const renderDashboard = () => {
-    // Prep data for edit mode
-    let editArticle = null;
-    let publishDate = new Date().toISOString().split('T')[0]; // Default today
-
-    if (state.editingId) {
-        editArticle = state.articles.find(a => a.id === state.editingId);
-        if (editArticle) {
-            // Date handling logic here if needed
-        }
-    }
-
-    return `
-    <div class="max-w-7xl mx-auto py-8">
-        <header class="flex flex-col md:flex-row justify-between items-end mb-12 border-b border-gray-200 dark:border-gray-700 pb-6 gap-4">
-            <div>
-                <h1 class="text-4xl font-serif font-bold mb-2">Admin Paneli</h1>
-                <p class="text-gray-500">Düzenlemeleri yaptıktan sonra <span class="font-bold">KAYDET</span> butonuna basın.</p>
-            </div>
-            <div class="flex gap-4">
-                 <button onclick="saveChanges()" class="px-6 py-3 bg-black text-white dark:bg-white dark:text-black rounded font-bold hover:opacity-80">DEĞİŞİKLİKLERİ KAYDET</button>
-                 <button onclick="handleLogout()" class="px-4 py-3 border border-red-200 text-red-500 rounded hover:bg-red-50">Çıkış</button>
-            </div>
-        </header>
-
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-12">
-            <!-- Left: Article Form -->
-            <div class="lg:col-span-2 space-y-12">
-                <div class="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 relative">
-                    ${state.editingId ? `<div class="absolute top-4 right-4 bg-blue-100 text-blue-800 text-xs font-bold px-2 py-1 rounded">DÜZENLEME MODU</div>` : ''}
-                    
-                    <h2 class="text-2xl font-serif font-bold mb-6">${state.editingId ? 'Makaleyi Düzenle' : 'Makale Oluştur'}</h2>
-                    
-                    <form onsubmit="handleAddArticle(event)" class="space-y-6">
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <input name="title" required placeholder="Başlık" value="${editArticle ? editArticle.title : ''}" class="w-full p-3 bg-gray-50 dark:bg-gray-900 border rounded">
-                            <input name="author" required placeholder="Yazar" value="${editArticle ? editArticle.author : ''}" class="w-full p-3 bg-gray-50 dark:bg-gray-900 border rounded">
-                        </div>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                             <input type="date" name="dateInput" class="w-full p-3 bg-gray-50 dark:bg-gray-900 border rounded text-gray-500">
-                             <input name="imageUrl" placeholder="Kapak Görseli URL" value="${editArticle ? editArticle.imageUrl : ''}" class="w-full p-3 bg-gray-50 dark:bg-gray-900 border rounded">
-                        </div>
-                        
-                        <div>
-                            <label class="block text-sm font-bold mb-2 text-gray-500">Kategoriler</label>
-                            <div class="flex flex-wrap gap-4 p-4 border rounded bg-gray-50 dark:bg-gray-900">
-                                ${state.categories.map(c => `
-                                    <label class="flex items-center space-x-2 cursor-pointer">
-                                        <input type="checkbox" name="categories" value="${c.name}" class="rounded w-4 h-4" 
-                                            ${(editArticle && editArticle.categories.includes(c.name)) ? 'checked' : ''}>
-                                        <span class="text-sm">${c.name}</span>
-                                    </label>
-                                `).join('')}
-                            </div>
-                        </div>
-
-                        <div class="text-xs text-gray-500">İçerik için HTML kullanabilirsiniz (örn: &lt;p&gt;, &lt;img&gt;, &lt;b&gt;)</div>
-                        <textarea name="content" required rows="10" placeholder="İçerik (HTML)" class="w-full p-4 bg-gray-50 dark:bg-gray-900 border rounded font-mono text-sm">${editArticle ? editArticle.content : ''}</textarea>
-                        
-                        <div class="flex gap-4">
-                            <button class="flex-1 bg-black text-white dark:bg-white dark:text-black py-4 rounded font-bold uppercase hover:opacity-90">
-                                ${state.editingId ? 'GÜNCELLE' : 'LİSTEYE EKLE'}
-                            </button>
-                            ${state.editingId ? `<button type="button" onclick="cancelEdit()" class="px-6 border border-gray-300 rounded hover:bg-gray-100 dark:hover:bg-gray-700">Vazgeç</button>` : ''}
-                        </div>
-                    </form>
-                </div>
-
-                 <div class="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
-                    <h2 class="text-xl font-serif font-bold mb-6">Mevcut Makaleler</h2>
-                    <div class="space-y-2 max-h-[500px] overflow-y-auto custom-scrollbar">
-                        ${state.articles.map(article => `
-                            <div class="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition">
-                                <div>
-                                    <h3 class="font-bold text-lg">${article.title}</h3>
-                                    <div class="text-xs text-gray-500 mt-1">${article.date} • ${article.author}</div>
-                                </div>
-                                <div class="flex gap-2">
-                                    <button onclick="handleEditArticle(${article.id})" class="text-xs bg-blue-100 text-blue-600 px-3 py-2 rounded font-bold hover:bg-blue-200">Düzenle</button>
-                                    <button onclick="handleDeleteArticle(${article.id})" class="text-xs bg-red-100 text-red-600 px-3 py-2 rounded font-bold hover:bg-red-200">Sil</button>
-                                </div>
-                            </div>
-                        `).join('')}
-                    </div>
-                </div>
-            </div>
-
-            <!-- Right: Config -->
-            <div class="lg:col-span-1 space-y-8">
-                <!-- Announcement -->
-                <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
-                    <h2 class="text-lg font-serif font-bold mb-4">Duyuru</h2>
-                    <form onsubmit="handleUpdateAnnouncement(event)" class="flex flex-col gap-3">
-                        <input id="announcement-text" value="${state.announcement.text || ''}" class="w-full p-3 bg-gray-50 dark:bg-gray-900 border rounded">
-                        <div class="flex gap-2">
-                            <button type="button" onclick="toggleAnnouncementActive()" class="flex-1 py-2 border rounded text-xs font-bold ${state.announcement.active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-500'}">
-                                ${state.announcement.active ? 'AKTİF' : 'PASİF'}
-                            </button>
-                            <button class="flex-1 py-2 bg-black text-white dark:bg-white dark:text-black rounded text-xs font-bold">GÜNCELLE</button>
-                        </div>
-                    </form>
-                </div>
-
-                <!-- Categories -->
-                 <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
-                    <h2 class="text-lg font-serif font-bold mb-4">Kategoriler</h2>
-                    <form onsubmit="handleAddCategory(event)" class="mb-4 space-y-2">
-                        <input name="catName" required placeholder="Adı" class="w-full p-2 bg-gray-50 dark:bg-gray-900 border rounded text-sm">
-                        <select name="catType" class="w-full p-2 bg-gray-50 dark:bg-gray-900 border rounded text-sm">
-                            <option value="main">Ana Kategori</option>
-                            <option value="sub">Alt Kategori</option>
-                            <option value="year">Yıl</option>
-                        </select>
-                        <button class="w-full py-2 bg-blue-600 text-white rounded text-sm font-bold">EKLE</button>
-                    </form>
-                    <div class="space-y-2 max-h-[200px] overflow-y-auto custom-scrollbar">
-                        ${state.categories.map(c => `
-                            <div class="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-900 rounded text-sm">
-                                <span>${c.name}</span>
-                                <button onclick="handleDeleteCategory(${c.id})" class="text-red-400">×</button>
-                            </div>
-                        `).join('')}
-                    </div>
-                 </div>
-            </div>
-            
-            <!-- Bottom: Files (Moved here for more space) -->
-            <div class="lg:col-span-3">
-                 <div class="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
-                    <h2 class="text-2xl font-serif font-bold mb-6">Dosyalar (Resources)</h2>
-                    
-                    <form onsubmit="handleFileUpload(event)" class="flex gap-4 mb-8 items-end bg-gray-50 dark:bg-gray-900 p-4 rounded">
-                        <div class="flex-grow">
-                            <label class="block text-xs font-bold text-gray-500 mb-1">Dosya Adı (Opsiyonel)</label>
-                            <input type="text" id="file-name" class="w-full p-2 text-sm border rounded bg-white dark:bg-gray-800">
-                        </div>
-                        <div class="flex-grow">
-                            <label class="block text-xs font-bold text-gray-500 mb-1">Dosya Seç</label>
-                            <input type="file" id="file-input" accept="image/*" class="w-full text-xs">
-                        </div>
-                        <button class="px-6 py-2 bg-blue-600 text-white rounded text-sm font-bold h-10">YÜKLE</button>
-                    </form>
-
-                    <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 max-h-[400px] overflow-y-auto custom-scrollbar">
-                        ${state.files.map(f => `
-                            <div class="p-3 bg-gray-50 dark:bg-gray-900 rounded border group relative">
-                                <img src="${f.data}" class="w-full h-32 object-cover rounded mb-2 bg-gray-200">
-                                <div class="text-xs font-bold truncate mb-2">${f.name}</div>
-                                <div class="flex flex-col gap-1">
-                                    <button onclick="copyToClipboard('${f.data}')" class="w-full py-1 bg-gray-200 dark:bg-gray-700 text-[10px] font-bold rounded hover:bg-gray-300">KOPYALA</button>
-                                    <button onclick="handleDeleteFile(${f.id})" class="w-full py-1 bg-red-100 text-red-600 text-[10px] font-bold rounded hover:bg-red-200">SİL</button>
-                                </div>
-                            </div>
-                        `).join('')}
-                    </div>
-                </div>
-            </div>
-
-        </div>
-    </div>
-    `;
-};
-
-// --- GLOBAL HANDLERS ---
+// --- HANDLERS (ADMIN) ---
 
 window.handleLogin = (e) => {
     e.preventDefault();
@@ -579,84 +659,50 @@ window.handleLogin = (e) => {
     if (pass === 'admin123') {
         state.isAuthenticated = true;
         sessionStorage.setItem('admin_auth', 'true');
-        const adminApp = document.getElementById('admin-app');
-        renderAdmin(adminApp);
-    } else {
-        alert('Hatalı şifre!');
-    }
+        renderAdmin(document.getElementById('admin-app'));
+    } else { alert('Hatalı şifre!'); }
 };
 
 window.handleLogout = () => {
     state.isAuthenticated = false;
     sessionStorage.removeItem('admin_auth');
-    const adminApp = document.getElementById('admin-app');
-    renderAdmin(adminApp);
+    renderAdmin(document.getElementById('admin-app'));
 };
 
 window.saveChanges = async () => {
-    const exportData = {
-        articles: state.articles,
-        categories: state.categories,
-        announcement: state.announcement,
-        files: state.files
-    };
-
+    const exportData = { articles: state.articles, categories: state.categories, announcement: state.announcement, files: state.files, messages: state.messages };
     try {
-        const response = await fetch('/api/data', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(exportData)
-        });
-
-        if (response.ok) {
-            alert("Değişiklikler kaydedildi ve HTML sayfaları oluşturuldu!");
-        } else {
-            alert("Hata: Kaydedilemedi.");
-        }
-    } catch (error) {
-        alert("Sunucu iletişim hatası.");
-        console.error(error);
-    }
+        const response = await fetch('/api/data', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(exportData) });
+        if (response.ok) alert("Değişiklikler kaydedildi!");
+        else alert("Hata: Kaydedilemedi.");
+    } catch (error) { alert("Sunucu iletişim hatası."); }
 };
 
-// New: Handle Edit Click
 window.handleEditArticle = (id) => {
     state.editingId = id;
-    const adminApp = document.getElementById('admin-app');
-    renderAdmin(adminApp);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    state.activeAdminTab = 'articles';
+    renderAdmin(document.getElementById('admin-app'));
 };
 
-// New: Cancel Edit
 window.cancelEdit = () => {
     state.editingId = null;
-    const adminApp = document.getElementById('admin-app');
-    renderAdmin(adminApp);
+    renderAdmin(document.getElementById('admin-app'));
 };
 
 window.handleAddArticle = (e) => {
     e.preventDefault();
     const formData = new FormData(e.target);
-    
     const selectedCategories = [];
-    document.querySelectorAll('input[name="categories"]:checked').forEach((checkbox) => {
-        selectedCategories.push(checkbox.value);
-    });
+    document.querySelectorAll('input[name="categories"]:checked').forEach((checkbox) => selectedCategories.push(checkbox.value));
+    
+    if (selectedCategories.length === 0) { alert("Kategori seçiniz."); return; }
 
-    if (selectedCategories.length === 0) {
-        alert("Lütfen en az bir kategori seçiniz.");
-        return;
-    }
-
-    // Handle Date: if input is empty, use today or existing
     let articleDateStr = new Date().toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' });
     const dateInput = formData.get('dateInput');
     if (dateInput) {
-        // Convert YYYY-MM-DD to Turkish format approx
         const d = new Date(dateInput);
         articleDateStr = d.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' });
     } else if (state.editingId) {
-        // If not editing date, keep old date? For simplicity we might just reset to Today if not provided
         const old = state.articles.find(a => a.id === state.editingId);
         if(old) articleDateStr = old.date;
     }
@@ -673,36 +719,24 @@ window.handleAddArticle = (e) => {
     };
 
     if (state.editingId) {
-        // UPDATE Existing
         const index = state.articles.findIndex(a => a.id === state.editingId);
         if (index !== -1) {
             state.articles[index] = { ...state.articles[index], ...articleData };
-            alert('Makale güncellendi. "KAYDET" butonuna basmayı unutmayın.');
+            alert('Güncellendi. "KAYDET" butonuna basınız.');
         }
         state.editingId = null;
     } else {
-        // CREATE New
-        const newArticle = {
-            id: Date.now(),
-            ...articleData
-        };
-        state.articles.unshift(newArticle);
-        alert('Makale eklendi. "KAYDET" butonuna basın.');
+        state.articles.unshift({ id: Date.now(), ...articleData });
+        alert('Eklendi. "KAYDET" butonuna basınız.');
     }
-    
-    e.target.reset();
-    const adminApp = document.getElementById('admin-app');
-    renderAdmin(adminApp);
+    renderAdmin(document.getElementById('admin-app'));
 };
 
 window.handleDeleteArticle = (id) => {
-    if (confirm('Silmek istediğinize emin misiniz?')) {
+    if (confirm('Silinecek?')) {
         state.articles = state.articles.filter(a => a.id !== id);
-        // Also if we were editing it, cancel edit
         if(state.editingId === id) state.editingId = null;
-        
-        const adminApp = document.getElementById('admin-app');
-        renderAdmin(adminApp);
+        renderAdmin(document.getElementById('admin-app'));
     }
 };
 
@@ -710,101 +744,102 @@ window.handleAddCategory = (e) => {
     e.preventDefault();
     const formData = new FormData(e.target);
     const name = formData.get('catName');
-    const type = formData.get('catType');
-    
     if (name) {
-        state.categories.push({ id: Date.now(), name: name, type: type });
-        const adminApp = document.getElementById('admin-app');
-        renderAdmin(adminApp);
+        state.categories.push({ id: Date.now(), name: name, type: formData.get('catType') });
+        renderAdmin(document.getElementById('admin-app'));
     }
 };
 
 window.handleDeleteCategory = (id) => {
-    if (confirm('Kategori silinsin mi?')) {
+    if (confirm('Silinecek?')) {
         state.categories = state.categories.filter(c => c.id !== id);
-        const adminApp = document.getElementById('admin-app');
-        renderAdmin(adminApp);
+        renderAdmin(document.getElementById('admin-app'));
     }
 };
 
 window.handleUpdateAnnouncement = (e) => {
     e.preventDefault();
-    const text = document.getElementById('announcement-text').value;
-    state.announcement.text = text;
-    const adminApp = document.getElementById('admin-app');
-    renderAdmin(adminApp);
-    alert('Duyuru güncellendi. "KAYDET" butonuna basmayı unutmayın.');
+    state.announcement.text = document.getElementById('announcement-text').value;
+    renderAdmin(document.getElementById('admin-app'));
+    alert('Güncellendi. Kaydetmeyi unutmayın.');
 };
 
 window.toggleAnnouncementActive = () => {
     state.announcement.active = !state.announcement.active;
-    const adminApp = document.getElementById('admin-app');
-    renderAdmin(adminApp);
+    renderAdmin(document.getElementById('admin-app'));
 };
 
 window.handleFileUpload = async (e) => {
     e.preventDefault();
     const fileInput = document.getElementById('file-input');
     const fileNameInput = document.getElementById('file-name');
-    
     if (fileInput.files && fileInput.files[0]) {
-        const file = fileInput.files[0];
-        const fileName = fileNameInput.value || file.name;
-        
         const formData = new FormData();
-        formData.append('file', file);
-
+        formData.append('file', fileInput.files[0]);
         try {
-            const res = await fetch('/api/upload', {
-                method: 'POST',
-                body: formData
-            });
-
+            const res = await fetch('/api/upload', { method: 'POST', body: formData });
             if(res.ok) {
                 const result = await res.json();
-                state.files.push({
-                    id: Date.now(),
-                    name: fileName,
-                    data: result.url 
-                });
-                alert('Dosya yüklendi! "KAYDET" butonuna basınız.');
-                const adminApp = document.getElementById('admin-app');
-                renderAdmin(adminApp);
-            } else {
-                alert("Yükleme başarısız.");
-            }
-        } catch (err) {
-            console.error(err);
-            alert("Yükleme hatası.");
-        }
+                state.files.push({ id: Date.now(), name: fileNameInput.value || fileInput.files[0].name, data: result.url });
+                alert('Yüklendi! Kaydedin.');
+                renderAdmin(document.getElementById('admin-app'));
+            } else alert("Hata.");
+        } catch (err) { alert("Hata."); }
     }
 };
 
 window.handleDeleteFile = (id) => {
-    if(confirm("Dosya listeden kaldırılsın mı?")) {
+    if(confirm("Silinecek?")) {
         state.files = state.files.filter(f => f.id !== id);
-        const adminApp = document.getElementById('admin-app');
-        renderAdmin(adminApp);
+        renderAdmin(document.getElementById('admin-app'));
     }
 };
 
-window.copyToClipboard = (text) => {
-    navigator.clipboard.writeText(text).then(() => {
-        alert("URL Kopyalandı!");
-    });
+window.copyToClipboard = (text) => navigator.clipboard.writeText(text).then(() => alert("URL Kopyalandı!"));
+
+// --- HANDLER (MESSAGES) ---
+window.handleDeleteMessage = (id) => {
+    if(confirm("Mesaj silinsin mi?")) {
+        state.messages = state.messages.filter(m => m.id !== id);
+        renderAdmin(document.getElementById('admin-app'));
+        // Trigger generic save to persist deletion
+        // Alternatively, implement dedicated delete endpoint. For now, rely on manual Save or implement auto-save for messages.
+        // Let's remind user to save.
+        alert("Mesaj listeden kaldırıldı. Değişikliği kalıcı yapmak için 'KAYDET' butonuna basın.");
+    }
+};
+
+// --- HANDLER (CONTACT FORM) ---
+window.handleSendMessage = async (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const messageData = {
+        name: formData.get('name'),
+        email: formData.get('email'),
+        subject: formData.get('subject'),
+        message: formData.get('message')
+    };
+    
+    try {
+        const res = await fetch('/api/contact', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(messageData)
+        });
+        if(res.ok) {
+            alert("Mesajınız iletildi! Teşekkürler.");
+            e.target.reset();
+        } else {
+            alert("Bir hata oluştu.");
+        }
+    } catch(err) {
+        alert("Bağlantı hatası.");
+    }
 };
 
 // --- EVENTS ---
 document.addEventListener('DOMContentLoaded', initApp);
-
-const menuBtn = document.getElementById('menu-btn');
-if(menuBtn) menuBtn.addEventListener('click', () => toggleMenu(true));
-
-const closeBtn = document.getElementById('sidebar-close');
-if(closeBtn) closeBtn.addEventListener('click', () => toggleMenu(false));
-
-const overlay = document.getElementById('sidebar-overlay');
-if(overlay) overlay.addEventListener('click', () => toggleMenu(false));
-
-const themeBtn = document.getElementById('theme-btn');
-if(themeBtn) themeBtn.addEventListener('click', toggleTheme);
+const menuBtn = document.getElementById('menu-btn'); if(menuBtn) menuBtn.addEventListener('click', () => toggleMenu(true));
+const closeBtn = document.getElementById('sidebar-close'); if(closeBtn) closeBtn.addEventListener('click', () => toggleMenu(false));
+const overlay = document.getElementById('sidebar-overlay'); if(overlay) overlay.addEventListener('click', () => toggleMenu(false));
+const themeBtn = document.getElementById('theme-btn'); if(themeBtn) themeBtn.addEventListener('click', toggleTheme);
