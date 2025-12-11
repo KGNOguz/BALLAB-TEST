@@ -3,14 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Anasayfa - BALLAB</title>
+    <title>Okulumuz Hakkında - BALLAB</title>
     
-    <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Merriweather:ital,wght@0,300;0,400;0,700;0,900;1,300&display=swap" rel="stylesheet">
-
-    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -21,29 +18,12 @@
                         sans: ['Inter', 'sans-serif'],
                         serif: ['Merriweather', 'serif'],
                     },
-                    colors: {
-                        paper: '#ffffff',
-                        ink: '#111111'
-                    },
-                    animation: {
-                        'fade-in': 'fadeIn 0.5s ease-out',
-                    },
-                    keyframes: {
-                        fadeIn: {
-                            '0%': { opacity: '0', transform: 'translateY(10px)' },
-                            '100%': { opacity: '1', transform: 'translateY(0)' },
-                        }
-                    }
+                    colors: { paper: '#ffffff', ink: '#111111' }
                 }
             }
         }
     </script>
-    <style>
-        body { -webkit-font-smoothing: antialiased; }
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #ddd; border-radius: 4px; }
-        .dark .custom-scrollbar::-webkit-scrollbar-thumb { background: #333; }
-    </style>
+    <style>body { -webkit-font-smoothing: antialiased; }</style>
 </head>
 <body class="bg-paper text-ink dark:bg-gray-900 dark:text-gray-100 transition-colors duration-300 flex flex-col min-h-screen">
 
@@ -51,10 +31,9 @@
     <nav class="sticky top-0 z-40 bg-white/95 dark:bg-gray-900/95 backdrop-blur border-b border-gray-100 dark:border-gray-800 transition-colors duration-300">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between items-center h-20">
-                <!-- Left: Menu -->
                 <div class="flex items-center">
                      <button id="menu-btn" class="flex items-center gap-2 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors group">
-                        <svg class="group-hover:text-blue-600 transition-colors" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+                        <svg class="group-hover:text-blue-600 transition-colors" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
                         <span class="hidden md:inline text-sm font-medium text-gray-500 group-hover:text-blue-600">Menü</span>
                     </button>
                 </div>
@@ -66,9 +45,8 @@
                     <span class="text-3xl font-serif font-black tracking-tighter pb-1">BALLAB</span>
                 </a>
                 
-                <!-- Right: Theme Toggle & Search -->
                 <div class="flex items-center gap-4">
-                    <form onsubmit="handleSearch(event)" class="hidden md:flex items-center bg-gray-100 dark:bg-gray-800 rounded-full p-1 pl-4 border border-transparent focus-within:border-gray-300 dark:focus-within:border-gray-600 transition-all">
+                     <form onsubmit="handleSearch(event)" class="hidden md:flex items-center bg-gray-100 dark:bg-gray-800 rounded-full p-1 pl-4 border border-transparent focus-within:border-gray-300 dark:focus-within:border-gray-600 transition-all">
                         <input type="text" name="q" placeholder="Ara..." class="bg-transparent text-sm focus:outline-none w-32 focus:w-48 transition-all placeholder-gray-500 dark:placeholder-gray-400">
                         <button type="submit" class="bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-200 p-2 rounded-full hover:bg-gray-400 dark:hover:bg-gray-500 transition-colors flex items-center justify-center">
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
@@ -89,13 +67,10 @@
     <aside id="sidebar" class="fixed inset-y-0 left-0 w-80 bg-white dark:bg-gray-900 z-50 transform -translate-x-full transition-transform duration-300 shadow-2xl flex flex-col border-r border-gray-100 dark:border-gray-800">
         <div class="p-6 flex justify-between items-center border-b border-gray-100 dark:border-gray-800 h-20">
             <span class="font-serif text-xl font-bold tracking-tight">Menü</span>
-            <button id="sidebar-close" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-            </button>
+            <button id="sidebar-close" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
         </div>
-        <div class="p-8 flex-grow overflow-y-auto custom-scrollbar">
-            <!-- Mobile Search -->
-            <form onsubmit="handleSearch(event)" class="mb-8 block md:hidden">
+        <div class="p-8 flex-grow overflow-y-auto">
+             <form onsubmit="handleSearch(event)" class="mb-8 block md:hidden">
                 <div class="flex items-center bg-gray-100 dark:bg-gray-800 rounded-full p-1 border border-transparent focus-within:border-gray-300 dark:focus-within:border-gray-600 transition-all">
                     <input type="text" name="q" placeholder="İçerik ara..." class="w-full bg-transparent text-sm px-4 py-2 rounded-full focus:outline-none placeholder-gray-500">
                     <button type="submit" class="bg-gray-300 dark:bg-gray-600 px-3 py-2 rounded-full hover:bg-gray-400 dark:hover:bg-gray-500 transition-colors">
@@ -103,31 +78,45 @@
                     </button>
                 </div>
             </form>
-
             <nav class="flex flex-col gap-4 mb-10">
                 <a href="/" class="text-lg font-medium hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Anasayfa</a>
                 <a href="/about.html" class="text-lg font-medium hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Hakkımızda</a>
                 <a href="/school.html" class="text-lg font-medium hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Okulumuz</a>
                 <a href="/contact.html" class="text-lg font-medium hover:text-blue-600 dark:hover:text-blue-400 transition-colors">İletişim</a>
             </nav>
-            <div id="sidebar-categories" class="pt-6 border-t border-gray-100 dark:border-gray-800">
-                <!-- Dynamic Categories -->
-            </div>
-        </div>
-        
-        <div class="p-6 border-t border-gray-100 dark:border-gray-800">
-             <div class="flex gap-4 justify-center opacity-50">
-                <svg class="w-5 h-5 cursor-pointer hover:opacity-100 transition-opacity" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
-             </div>
+             <div id="sidebar-categories" class="pt-6 border-t border-gray-100 dark:border-gray-800"></div>
         </div>
     </aside>
 
-    <!-- Announcement Bar -->
-    <div id="announcement-container"></div>
-
-    <!-- Main Content -->
-    <main id="app" class="flex-grow w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 transition-opacity duration-200">
-        <!-- Content injected via index.js -->
+    <!-- School Content -->
+    <main class="flex-grow w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div class="max-w-4xl mx-auto">
+            <h1 class="text-4xl font-serif font-bold mb-8 text-center">Bursa Anadolu Lisesi</h1>
+            <div class="w-20 h-1 bg-black dark:bg-white mx-auto mb-12"></div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-12 items-center mb-16">
+                 <div>
+                    <p class="text-lg text-gray-600 dark:text-gray-300 leading-relaxed mb-6">
+                        Bursa Anadolu Lisesi, köklü geçmişi ve akademik başarılarıyla Türkiye'nin önde gelen eğitim kurumlarından biridir. 
+                        Bilim, sanat ve kültür alanında öncü bireyler yetiştirmeyi hedefleyen okulumuz, modern eğitim anlayışı ile öğrencilerini geleceğe hazırlar.
+                    </p>
+                    <p class="text-lg text-gray-600 dark:text-gray-300 leading-relaxed">
+                        Okulumuz, sadece akademik değil, sosyal ve kültürel faaliyetlerle de öğrencilerin çok yönlü gelişimini desteklemektedir.
+                    </p>
+                 </div>
+                 <div class="rounded-2xl overflow-hidden shadow-lg h-80">
+                      <!-- Placeholder for School Image -->
+                      <img src="https://bursaanadolulisesi.meb.k12.tr/meb_iys_dosyalar/16/15/134726/resimler/2023_09/04104523_bursa-anadolu-lisesi.jpg" class="w-full h-full object-cover" onerror="this.src='https://placehold.co/600x400?text=Okulumuz'">
+                 </div>
+            </div>
+            
+             <div class="bg-gray-50 dark:bg-gray-800 p-8 rounded-2xl border border-gray-100 dark:border-gray-700 text-center">
+                <h3 class="font-serif font-bold text-2xl mb-4">Vizyonumuz</h3>
+                <p class="text-gray-600 dark:text-gray-300 italic">
+                    "Geleceği inşa eden, değerlerine bağlı, evrensel düşünen nesiller yetiştirmek."
+                </p>
+            </div>
+        </div>
     </main>
 
     <!-- Footer -->
